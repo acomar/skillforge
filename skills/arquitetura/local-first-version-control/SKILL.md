@@ -307,3 +307,55 @@ Se A e B alteram o mesmo campo para valores diferentes:
 - Se já existir uma nova versão, reintegra antes de publicar.
 
 Este cenário é teste obrigatório de conformidade da implementação.
+
+
+## Recuperação de acesso à pasta compartilhada
+
+A implementação deve distinguir **identidade/localização da pasta** de **permissão do navegador**. Perder permissão não significa que a pasta deixou de ser conhecida.
+
+### Estado 1: pasta conhecida e acesso válido
+- Reutilizar o handle/referência persistida.
+- Operar normalmente.
+- Não pedir seleção nem autorização desnecessária.
+
+### Estado 2: pasta conhecida e permissão ausente
+Este é o fluxo preferencial de recuperação.
+
+1. Recuperar o handle/referência persistida da pasta.
+2. Consultar o estado de permissão suportado pela plataforma.
+3. Se a referência continua válida mas a permissão não está concedida, **não abrir o seletor de diretório**.
+4. Mostrar ação: **Permitir acesso**.
+5. A partir de uma ação explícita do usuário, solicitar novamente a permissão para a pasta já conhecida, conforme as regras do navegador.
+6. Após autorização, validar o repositoryId/manifest antes de sincronizar.
+7. Retomar a sincronização pendente sem exigir que o usuário procure a pasta.
+
+Mensagem recomendada:
+**Acesso à pasta necessário**
+**A pasta deste projeto já está configurada. Permita o acesso para continuar sincronizando.**
+Ação: **Permitir acesso**
+
+### Estado 3: referência da pasta perdida ou inutilizável
+Somente neste caso solicitar localização novamente.
+
+Mensagem:
+**Localizar pasta compartilhada**
+**Não conseguimos recuperar a referência da pasta deste projeto. Selecione-a novamente para continuar.**
+Ação: **Escolher pasta**
+
+Depois da seleção:
+1. validar manifest e repositoryId;
+2. se corresponder ao projeto, substituir/persistir a referência recuperada;
+3. solicitar a permissão necessária;
+4. sincronizar as alterações pendentes;
+5. se não corresponder, não conectar silenciosamente e explicar que é outra base.
+
+### Ordem obrigatória de fallback
+**referência conhecida + acesso válido -> referência conhecida + pedir permissão -> selecionar pasta novamente**
+
+Nunca inverter essa ordem por conveniência de implementação.
+
+### Persistência
+Quando a plataforma permitir, persistir o directory handle/referência em armazenamento apropriado, preferencialmente IndexedDB. Não assumir que essa referência ou a permissão sobreviverá indefinidamente a reinícios, limpeza de dados, mudança de navegador, políticas corporativas ou alterações do sistema.
+
+### Regra de segurança
+A recuperação de acesso nunca descarta a working copy. Enquanto a pasta estiver inacessível, continuar salvando localmente e marcar claramente que existem alterações ainda não compartilhadas.
