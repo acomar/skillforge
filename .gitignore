@@ -1,0 +1,19 @@
+# Segredos e configurações locais
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Sistema e editores
+.DS_Store
+.idea/
+.vscode/
