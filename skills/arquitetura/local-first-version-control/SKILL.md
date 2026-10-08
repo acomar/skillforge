@@ -235,3 +235,75 @@ Não assuma que um browser preservará indefinidamente permissão a uma pasta. I
 - Design da timeline de histórico.
 
 Esses itens pertencem à segunda camada de UX.
+
+
+## Protocolo de edição concorrente
+
+Quando duas ou mais pessoas editam simultaneamente, siga esta ordem obrigatória.
+
+### 1. Edição não bloqueante
+Cada usuário edita sua working copy local. Alterações são persistidas localmente sem disputar escrita no repositório compartilhado a cada interação. Nunca exigir lock exclusivo como fluxo normal.
+
+### 2. Sincronização do primeiro publicador
+Ao sincronizar:
+1. Persistir mudanças locais pendentes.
+2. Ler o remoteHead atual.
+3. Se o remoteHead ainda for o baseCommit do usuário, criar/publicar os objetos imutáveis.
+4. Promover a ref compartilhada usando proteção contra concorrência.
+5. Confirmar o novo head.
+
+### 3. Sincronização de outro usuário com base antiga
+Se outro usuário começou da mesma base, mas encontra um remoteHead mais novo:
+1. Não sobrescrever o remoto.
+2. Encontrar o merge base.
+3. Executar merge Base/Local/Remote.
+4. Integrar automaticamente mudanças independentes e combinações comprovadamente seguras.
+5. Se não houver conflito, criar uma nova versão integrada.
+6. Se houver conflito, persistir a sessão e solicitar somente as decisões necessárias.
+
+### 4. Resolução humana
+Para cada conflito, preservar Base, Local e Remote. A camada visual oferece opções semanticamente válidas, como manter a alteração local, manter a compartilhada, combinar ou editar o resultado. Nenhuma escolha é publicada antes da conclusão da sessão.
+
+### 5. Segunda verificação obrigatória
+Depois da resolução e imediatamente antes de promover a nova versão:
+1. Ler novamente o remoteHead.
+2. Comparar com o head usado na integração.
+3. Se não mudou, publicar usando compare-and-swap ou proteção equivalente.
+4. Se mudou, não sobrescrever. Reintegrar contra o novo head.
+5. Mostrar ao usuário apenas novos conflitos reais que surgirem.
+
+### 6. Finalização
+Após publicação confirmada:
+- baseCommit = remoteHead publicado;
+- localHead = remoteHead publicado;
+- working copy = estado integrado;
+- limpar conflitos resolvidos e dirty state aplicável;
+- manter histórico;
+- informar estado Atualizado.
+
+## Regras de ouro da concorrência
+1. Nunca bloquear o trabalho normal de outro usuário.
+2. Nunca sobrescrever silenciosamente uma versão compartilhada.
+3. Nunca pedir decisão humana para mudanças que podem ser combinadas com segurança.
+4. Nunca considerar a publicação concluída antes de confirmar a promoção da ref.
+5. Uma mudança remota durante resolução ou publicação sempre força nova verificação.
+6. Falha de sincronização nunca descarta a working copy local.
+7. A interface não expõe a complexidade do protocolo quando nenhuma ação do usuário é necessária.
+
+## Cenário canônico
+Usuários A e B partem da versão 10.
+
+Se A altera entidade X e B altera entidade Y:
+- A publica versão 11.
+- B encontra 11, integra sua mudança sobre ela e publica versão 12.
+- O usuário B recebe apenas confirmação de sincronização.
+
+Se A e B alteram o mesmo campo para valores diferentes:
+- A publica 11.
+- B encontra 11 e o merge gera conflito.
+- B resolve visualmente.
+- O motor verifica novamente o remoteHead.
+- Se continuar 11, publica 12.
+- Se já existir uma nova versão, reintegra antes de publicar.
+
+Este cenário é teste obrigatório de conformidade da implementação.
