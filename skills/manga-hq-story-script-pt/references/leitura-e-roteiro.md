@@ -32,6 +32,6 @@ As referências locais do caso não acompanham a skill pública. Ao aplicar a sk
 
 ## Duração e saídas
 
-Use a cadência do perfil apenas para uma estimativa de gravação. Conte palavras do texto limpo, reserve pausas de revelação e considere idioma/locutor. Para um short, selecione um arco com resultado; para relato completo, cubra todos os acontecimentos necessários sem usar o relógio como motivo para preencher.
+Use a cadência do perfil apenas para uma estimativa de gravação. Conte palavras do texto limpo, reserve pausas de revelação e considere idioma/locutor. O padrão é relato completo de10–30min conforme o material, com começo, todos os acontecimentos necessários e desfecho. Use diálogos parafraseados, decisões, reações e pistas para dar profundidade, sem usar o relógio como motivo para repetir ou inventar. Short/seleção de arco exige pedido explícito. Consulte [historia-completa-e-duracao.md](historia-completa-e-duracao.md).
 
 Entregue texto narrável, beats, painel por beat, notas de evidência e estrutura de produção sem anúncios. Identifique gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. A intro silenciosa recebe direção de imagem e som na estrutura, sem instruções no texto falado. Liste o que ficou fora de uma seleção curta. Não misture direção de câmera com texto de TTS.

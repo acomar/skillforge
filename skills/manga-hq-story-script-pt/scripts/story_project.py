@@ -255,6 +255,104 @@ def validate_production_structure(script):
     return errors
 
 
+def validate_story_coverage(manifest, script):
+    """Check a declared page-to-beat ledger; this cannot verify prose meaning.
+
+    Supporting evidence lets one narrated beat cover several pages without
+    requiring a separate displayed shot for each page. Complete mode must
+    account for every narrative page; older scripts without a ledger remain
+    compatible and are never automatically called complete.
+    """
+    if "story_coverage" not in script:
+        return []
+    coverage = script["story_coverage"]
+    if not isinstance(coverage, dict):
+        return ["story_coverage deve ser objeto."]
+    errors = []
+    mode = coverage.get("mode")
+    if mode not in ("complete", "partial"):
+        errors.append("story_coverage.mode deve ser complete ou partial.")
+    raw_pages = manifest.get("pages", [])
+    pages = {page["id"]: page for page in raw_pages
+             if isinstance(page, dict) and isinstance(page.get("id"), str)} if isinstance(raw_pages, list) else {}
+    narrative = {pid for pid, page in pages.items() if page.get("status") == "narrative"}
+    ids = coverage.get("narrative_page_ids")
+    if not isinstance(ids, list) or not ids or any(not isinstance(pid, str) for pid in ids):
+        return errors + ["story_coverage.narrative_page_ids deve ser lista não vazia de IDs."]
+    declared = set(ids)
+    if len(declared) != len(ids):
+        errors.append("story_coverage.narrative_page_ids contém IDs duplicados.")
+    for pid in declared:
+        if pid not in pages:
+            errors.append(f"story_coverage: página inexistente: {pid}.")
+        elif pages[pid].get("status") != "narrative":
+            errors.append(f"story_coverage: página excluída do enredo: {pid}.")
+        elif pages[pid].get("reviewed") is not True:
+            errors.append(f"story_coverage: página narrativa sem revisão: {pid}.")
+    if mode == "complete" and declared != narrative:
+        missing = sorted(narrative - declared)
+        extra = sorted(declared - narrative)
+        errors.append("story_coverage complete diverge das páginas narrativas do manifesto; "
+                      f"faltam: {', '.join(missing) or 'nenhuma'}; extras: {', '.join(extra) or 'nenhuma'}.")
+    raw_beats = script.get("beats", [])
+    beats = {beat["id"]: beat for beat in raw_beats
+             if isinstance(beat, dict) and isinstance(beat.get("id"), str)} if isinstance(raw_beats, list) else {}
+    ledger = coverage.get("page_coverage")
+    if not isinstance(ledger, list):
+        return errors + ["story_coverage.page_coverage deve ser lista de vínculos página/beat."]
+    ledger_ids = set()
+    for entry in ledger:
+        if not isinstance(entry, dict) or not isinstance(entry.get("page_id"), str):
+            errors.append("story_coverage.page_coverage contém registro sem page_id válido.")
+            continue
+        pid = entry["page_id"]
+        if pid in ledger_ids:
+            errors.append(f"story_coverage.page_coverage contém página duplicada: {pid}.")
+        ledger_ids.add(pid)
+        if pid not in declared:
+            errors.append(f"story_coverage.page_coverage referencia página fora do escopo declarado: {pid}.")
+        refs = entry.get("included_in_beats")
+        if not isinstance(refs, list) or not refs or any(not isinstance(bid, str) for bid in refs):
+            errors.append(f"story_coverage/{pid}: included_in_beats deve ser lista não vazia de IDs.")
+            continue
+        if len(set(refs)) != len(refs):
+            errors.append(f"story_coverage/{pid}: included_in_beats contém IDs duplicados.")
+        if "rationale" in entry and (not isinstance(entry["rationale"], str) or not entry["rationale"].strip()):
+            errors.append(f"story_coverage/{pid}: rationale deve ser texto não vazio.")
+        for bid in refs:
+            beat = beats.get(bid)
+            if beat is None:
+                errors.append(f"story_coverage/{pid}: beat inexistente: {bid}.")
+                continue
+            evidence = beat.get("evidence_refs", [])
+            evidence_pages = {ref.get("page_id") for ref in evidence
+                              if isinstance(ref, dict) and isinstance(ref.get("page_id"), str)} if isinstance(evidence, list) else set()
+            if beat.get("page_id") != pid and pid not in evidence_pages:
+                errors.append(f"story_coverage/{pid}: {bid} não referencia esta página como imagem ou evidência.")
+    if ledger_ids != declared:
+        errors.append("story_coverage.page_coverage deve conter uma entrada para cada página declarada.")
+    if "review_note" in coverage and not isinstance(coverage["review_note"], str):
+        errors.append("story_coverage.review_note deve ser texto.")
+    return errors
+
+
+def duration_estimate(script):
+    """Estimate actual written narration without manufacturing a target length."""
+    narration = "\n\n".join(beat.get("narration", "").strip()
+                            for beat in script.get("beats", []) if isinstance(beat, dict)
+                            and isinstance(beat.get("narration"), str))
+    words = len(re.findall(r"\b\w+(?:[-’']\w+)*\b", narration, flags=re.UNICODE))
+    seconds = words * 60 / 148
+    return {"kind": "planning-estimate", "word_count": words,
+            "assumed_words_per_minute": 148,
+            "estimated_narration_seconds": round(seconds, 3),
+            "narration_range_seconds": [round(words * 60 / 155, 3), round(words * 60 / 140, 3)],
+            "target_minutes": [10, 30], "within_target_range": 600 <= seconds <= 1800,
+            "timestamps_confirmed": False,
+            "notes": "Estimativa da narração escrita; áudio real, pausas e módulos de produção determinam a duração final. "
+                     "A história completa tem prioridade: não omitir cenas nem criar conteúdo para preencher a faixa de 10 a 30 minutos."}
+
+
 def validate(manifest, script):
     errors = []
     if not isinstance(manifest, dict) or not isinstance(script, dict):
@@ -269,6 +367,9 @@ def validate(manifest, script):
     if "narrative_order" in script and script["narrative_order"] not in ("source-order", "editorial"):
         errors.append("narrative_order deve ser source-order ou editorial.")
     errors.extend(validate_production_structure(script))
+    errors.extend(validate_story_coverage(manifest, script))
+    if "visual_identity" in script and not isinstance(script["visual_identity"], dict):
+        errors.append("visual_identity deve ser objeto.")
     pages = manifest.get("pages")
     if not isinstance(pages, list) or not pages:
         return errors + ["Manifesto sem lista de páginas."]
@@ -407,7 +508,7 @@ def analysis_image_root(image_root, output_dir):
         return root.as_posix()
 
 
-def editing_analysis(manifest, script, output_dir, image_root=None):
+def editing_analysis(manifest, script, output_dir, image_root=None, *, visual_identity_root=None):
     """Export reviewed page/panel facts and an exact beat-to-image lookup.
 
     This is a mapping export, not image recognition or audio alignment. Keep
@@ -462,10 +563,16 @@ def editing_analysis(manifest, script, output_dir, image_root=None):
             "source_fingerprints": {"manifest_sha256": canonical_sha256(manifest),
                                     "script_sha256": canonical_sha256(script)},
             "image_root": root_hint, "image_catalog": catalog, "shots": shots,
+            "duration_estimate": duration_estimate(script),
             "notes": "timestamps require supplied audio alignment",
             "warnings": warnings}
     if "production_structure" in script:
         analysis["production_structure"] = copy.deepcopy(script["production_structure"])
+    if "story_coverage" in script:
+        analysis["story_coverage"] = copy.deepcopy(script["story_coverage"])
+    if "visual_identity" in script:
+        analysis["visual_identity"] = copy.deepcopy(script["visual_identity"])
+        analysis["visual_identity_root"] = analysis_image_root(visual_identity_root, output_dir)
     return analysis
 
 
@@ -496,6 +603,38 @@ def analysis_markdown(analysis):
              "As descrições vêm das fontes fornecidas; o exportador não interpreta imagens.", "",
              "Os tempos devem vir do alinhamento com o áudio de narração fornecido.", "",
              root_description, ""]
+    estimate = analysis.get("duration_estimate")
+    if estimate:
+        lines.extend(["## História completa e planejamento de duração", "",
+                      f"Narração escrita: {estimate['word_count']} palavras; estimativa de "
+                      f"{estimate['estimated_narration_seconds'] / 60:.1f} minutos a "
+                      f"{estimate['assumed_words_per_minute']} palavras/minuto. Faixa desejada: 10 a 30 minutos.", "",
+                      estimate["notes"], ""])
+        if not estimate["within_target_range"]:
+            lines.extend(["A estimativa escrita está fora da faixa desejada. Conferir o tamanho real da história; "
+                          "não alongar artificialmente nem omitir acontecimentos para ajustar o tempo.", ""])
+    if "story_coverage" in analysis:
+        coverage = analysis["story_coverage"]
+        lines.extend([f"Cobertura declarada: `{coverage['mode']}`. Os vínculos abaixo foram conferidos "
+                      "estruturalmente; a revisão visual e factual deve confirmar que a narração conta os eventos.", ""])
+        for entry in coverage["page_coverage"]:
+            lines.append(f"- `{markdown_text(entry['page_id'])}` → "
+                         + ", ".join(f"`{markdown_text(bid)}`" for bid in entry["included_in_beats"])
+                         + (f" — {markdown_text(entry['rationale'])}" if entry.get("rationale") else ""))
+        if coverage.get("review_note"):
+            lines.extend(["", markdown_text(coverage["review_note"])])
+        lines.append("")
+    else:
+        lines.extend(["Cobertura completa ainda não declarada. Este exportador não presume que os beats "
+                      "cobrem toda a obra apenas porque suas referências são válidas.", ""])
+    if "visual_identity" in analysis:
+        lines.extend(["## Identidade visual original da obra", "",
+                      "Plano fornecido pelo projeto; adaptar paleta, atmosfera e materiais à HQ ou ao mangá. "
+                      "A presença deste plano não confirma sua execução ou a revisão da imagem de fundo.", "",
+                      "```json", json.dumps(analysis["visual_identity"], ensure_ascii=False, indent=2), "```", ""])
+        identity_root = analysis.get("visual_identity_root")
+        lines.extend([f"Raiz dos arquivos de identidade visual: `{identity_root}`."
+                      if identity_root is not None else "Raiz dos arquivos de identidade visual pendente; informar na edição.", ""])
     if "production_structure" in analysis:
         structure = analysis["production_structure"]
         lines.extend(["## Estrutura completa da produção", "",
@@ -568,13 +707,13 @@ def analysis_markdown(analysis):
     return "\n".join(lines)
 
 
-def build(manifest, script, output_dir, *, image_root=None):
+def build(manifest, script, output_dir, *, image_root=None, visual_identity_root=None):
     errors = validate(manifest, script)
     if errors:
         raise ProjectError("\n".join(errors))
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
-    analysis = editing_analysis(manifest, script, out, image_root)
+    analysis = editing_analysis(manifest, script, out, image_root, visual_identity_root=visual_identity_root)
     narration = "\n\n".join(b["narration"].strip() for b in script["beats"]) + "\n"
     (out / "narration.txt").write_text(narration, encoding="utf-8")
     write_json(out / "validated-script.json", script)
@@ -622,7 +761,7 @@ def main(argv=None):
                 print("A validação estrutural não substitui conferência factual das imagens.")
             else:
                 root = args.image_root if args.image_root is not None else args.manifest.resolve().parent
-                print(f"Narração limpa criada: {build(manifest, script, args.output_dir, image_root=root)}")
+                print(f"Narração limpa criada: {build(manifest, script, args.output_dir, image_root=root, visual_identity_root=args.script.resolve().parent)}")
                 print(f"Análise para edição criada: {args.output_dir / 'editing-analysis.json'}")
                 print(f"Índice visual legível criado: {args.output_dir / 'editing-analysis.md'}")
     except (ProjectError, OSError) as exc:

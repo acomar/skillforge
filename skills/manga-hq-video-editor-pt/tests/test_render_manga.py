@@ -9,6 +9,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 import wave
 import zlib
 
@@ -27,8 +28,8 @@ def png(path, width, height, tint=255):
         for x in range(width):
             ink = x < 8 or y < 8 or x >= width-8 or y >= height-8
             ink = ink or (height//3 < y < height//3+10 and width//5 < x < width*4//5)
-            value = 8 if ink else tint
-            raw.extend((value, value, value, 255))
+            value = (8, 8, 8) if ink else ((tint, tint, tint) if isinstance(tint, int) else tint)
+            raw.extend((*value, 255))
     data = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
             + chunk(b"IDAT", zlib.compress(bytes(raw))) + chunk(b"IEND", b""))
     path.write_bytes(data)
@@ -54,8 +55,10 @@ class RendererTests(unittest.TestCase):
         cls.root.mkdir()
         cls.image1 = cls.root / "página ação.png"
         cls.image2 = cls.root / "quadro 漫画.png"
+        cls.background = cls.root / "ambiente original 漫画.png"
         png(cls.image1, 220, 300)
         png(cls.image2, 360, 220)
+        png(cls.background, 640, 360, tint=(150, 90, 50))
         audio(cls.root / "grave.wav", 440)
         audio(cls.root / "agudo.wav", 880)
         subprocess.run(["ffmpeg", "-hide_banner", "-nostdin", "-v", "error", "-i", str(cls.root/"grave.wav"),
@@ -66,10 +69,10 @@ class RendererTests(unittest.TestCase):
                     "audio": {"file": "faixas distintas.mka", "stream_index": 1},
                     "beats": [{"id": "painel-1", "start": 0, "end": 3, "image": cls.image1.name,
                                "bbox": [.05,.05,.95,.95], "motion": {"from_scale": 1, "to_scale": 1.8},
-                               "transition_seconds": .2, "legibility_reviewed": True},
+                               "transition_seconds": .2, "legibility_reviewed": True, "color_mode": "manga_cyan"},
                               {"id": "painel-2", "start": 3, "end": 6, "image": cls.image2.name,
                                "motion": {"from_scale": 1.8, "to_scale": 1}, "transition_seconds": .2,
-                               "legibility_reviewed": True}]}
+                               "legibility_reviewed": True, "color_mode": "manga_cyan"}]}
         cls.tools = renderer.tool_paths()
 
     @classmethod
@@ -108,13 +111,56 @@ class RendererTests(unittest.TestCase):
     def test_stale_reviewed_image_hash_is_rejected(self):
         self.reject(lambda p:p["beats"][0].update(image_sha256="0"*64),"does not match the reviewed plan")
 
-    def test_original_background_outlines_are_white_without_channel_wrap(self):
+    def test_ambient_fallback_is_muted_and_has_no_bright_overlay(self):
         raw=subprocess.run(["ffmpeg","-v","error","-filter_threads","1","-f","lavfi","-i",
                             renderer.background_filter(320,180,"1/1",.1,0),"-frames:v","1",
                             "-pix_fmt","rgb24","-f","rawvideo","-"],capture_output=True,check=True).stdout
-        bright=[(r,g,b) for r,g,b in zip(raw[0::3],raw[1::3],raw[2::3]) if r>180 and g>180]
-        self.assertGreater(len(bright),50)
-        self.assertTrue(all(max(pixel)-min(pixel)<=3 for pixel in bright))
+        self.assertEqual(len(raw),320*180*3)
+        pixels=list(zip(raw[0::3],raw[1::3],raw[2::3]))
+        self.assertLess(max(max(pixel) for pixel in pixels),60)
+        self.assertGreater(max(max(pixel) for pixel in pixels)-min(min(pixel) for pixel in pixels),10)
+        # No abrupt bright outlines or high-frequency geometry: neighboring
+        # channel values change gently in the actual decoded fallback frame.
+        self.assertLess(max(abs(raw[i]-raw[i+3]) for i in range(0,len(raw)-3) if i//960==(i+3)//960),5)
+
+    def test_default_preserves_original_panel_color_and_accepts_legacy_profile(self):
+        data=copy.deepcopy(self.plan)
+        data["profile"]="manga-blue-longform-v1"
+        for beat in data["beats"]:
+            beat.pop("color_mode")
+        validated=renderer.validate_plan(self.save(data),self.tools)
+        self.assertTrue(all(beat["color_mode"]=="original" for beat in validated["beats"]))
+        self.assertEqual(validated["background"]["mode"],"ambient")
+
+    def test_missing_background_image_is_rejected(self):
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"image","file":"absent.png"}}),
+                    "background.file does not exist")
+
+    def test_stale_background_hash_is_rejected(self):
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"image","file":self.background.name,
+                                                                   "sha256":"0"*64}}),"does not match the reviewed plan")
+
+    def test_invalid_background_file_is_rejected(self):
+        broken=self.root/"broken background.png"
+        broken.write_text("not an image",encoding="utf-8")
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"image","file":broken.name}}),
+                    "ffprobe exited|Invalid dimensions")
+
+    def test_background_palette_darkness_and_motion_are_validated(self):
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"ambient","palette":["blue","black"]}}),
+                    "two #RRGGBB")
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"ambient","darkness":.9}}),"0..0.65")
+        self.reject(lambda p:p.update(visual_identity={"background":{"mode":"image","file":self.background.name,
+                                                                   "zoom_to":1.8}}),"between 1 and 1.12")
+
+    def test_custom_ambient_palette_is_visible_in_decoded_frame(self):
+        source=renderer.background_filter(320,180,"1/1",.1,0,{"palette":["#361A16","#482722"],"darkness":0})
+        raw=subprocess.run(["ffmpeg","-v","error","-filter_threads","1","-f","lavfi","-i",source,
+                            "-frames:v","1","-pix_fmt","rgb24","-f","rawvideo","-"],
+                           capture_output=True,check=True).stdout
+        pixel=raw[(90*320+160)*3:(90*320+160)*3+3]
+        self.assertGreater(pixel[0],pixel[1]+20)
+        self.assertGreater(pixel[1],pixel[2])
 
     def test_gap_over_frame_is_rejected(self):
         self.reject(lambda p:p["beats"][1].update(start=3.2),"gap/overlap")
@@ -148,6 +194,65 @@ class RendererTests(unittest.TestCase):
         with self.assertRaisesRegex(renderer.RenderError,"new path"):
             renderer.render(path,self.image1,self.root/"bad-work",None,1,120,False)
 
+    def test_background_image_is_a_protected_source(self):
+        data=copy.deepcopy(self.plan)
+        data["visual_identity"]={"background":{"mode":"image","file":self.background.name}}
+        with self.assertRaisesRegex(renderer.RenderError,"new path"):
+            renderer.render(self.save(data),self.background,self.root/"bad-background-work",None,1,120,False)
+
+    def test_background_image_is_visible_and_changed_bytes_invalidate_all_segments(self):
+        data=copy.deepcopy(self.plan)
+        data["visual_identity"]={"name":"warm ink atmosphere","background":{"mode":"image","file":self.background.name}}
+        for beat in data["beats"]:
+            beat["motion"]={"from_scale":1,"to_scale":1}
+            beat["color_mode"]="original"
+        path=self.save(data,"background plan.json")
+        work=self.root/"background render work"
+        first=renderer.render(path,self.root/"background first.mp4",work,None,1,180,True)
+        raw=subprocess.run(["ffmpeg","-v","error","-ss","1","-i",first["output"],"-frames:v","1",
+                            "-pix_fmt","rgb24","-f","rawvideo","-"],capture_output=True,check=True).stdout
+        pixel=raw[(180*640+80)*3:(180*640+80)*3+3]
+        self.assertGreater(pixel[0],pixel[1]+20)
+        self.assertGreater(pixel[1],pixel[2]+10)
+        foreground=raw[(180*640+320)*3:(180*640+320)*3+3]
+        self.assertTrue(all(channel>220 for channel in foreground))
+        self.assertLess(max(foreground)-min(foreground),5)
+        report=json.loads(Path(first["report"]).read_text(encoding="utf-8"))
+        self.assertEqual(report["identity"]["plan"]["background"]["sha256"],renderer.file_hash(self.background))
+        second=renderer.render(path,self.root/"background resume.mp4",work,None,1,180,True)
+        self.assertEqual(second["reused_segments"],2)
+        try:
+            png(self.background,640,360,tint=(50,90,150))
+            third=renderer.render(path,self.root/"background changed.mp4",work,None,1,180,True)
+            self.assertEqual(third["reused_segments"],0)
+            self.assertEqual(third["rendered_segments"],2)
+            self.assertNotEqual(first["validation"]["sha256"],third["validation"]["sha256"])
+        finally:
+            png(self.background,640,360,tint=(150,90,50))
+
+    def test_background_change_during_render_is_rejected(self):
+        data=copy.deepcopy(self.plan)
+        data["visual_identity"]={"background":{"mode":"image","file":self.background.name}}
+        original_run=renderer.run
+        changed=False
+        def change_after_segment(command,*args,**kwargs):
+            nonlocal changed
+            result=original_run(command,*args,**kwargs)
+            if not changed and command[-1].endswith("segment-00001.mp4"):
+                png(self.background,640,360,tint=(50,90,150))
+                changed=True
+            return result
+        output=self.root/"changed mid render.mp4"
+        try:
+            with mock.patch.object(renderer,"run",side_effect=change_after_segment):
+                with self.assertRaisesRegex(renderer.RenderError,"Source changed during render"):
+                    renderer.render(self.save(data,"changing background.json"),output,
+                                    self.root/"changing background work",None,1,180,False)
+            self.assertTrue(changed)
+            self.assertFalse(output.exists())
+        finally:
+            png(self.background,640,360,tint=(150,90,50))
+
     def test_six_second_render_selects_one_audio_and_resumes(self):
         path=self.save(self.plan,"pilot.json")
         work=self.root/"render work"
@@ -170,7 +275,7 @@ class RendererTests(unittest.TestCase):
         self.assertLess(abs(crossings-880),4)
         join=samples[round(2.98*48000):round(3.02*48000)]
         self.assertGreater(sum(abs(v) for v in join)/len(join),100)
-        # Verify visible cyan panel plus original blue background and actual
+        # Verify visible explicitly cyan panel plus muted background and actual
         # growth, not merely a technically valid all-black movie.
         def frame(time):
             return subprocess.run(["ffmpeg","-v","error","-ss",str(time),"-i",first["output"],
@@ -181,7 +286,7 @@ class RendererTests(unittest.TestCase):
             return sum(30<r<120 and 120<g<220 and b>215 for r,g,b in zip(data[0::3],data[1::3],data[2::3]))
         self.assertGreater(cyan_count(early),1000)
         self.assertGreater(cyan_count(later),cyan_count(early)*1.3)
-        self.assertGreater(early[2],early[0]+30)
+        self.assertLess(max(early[:3]),60)
         second=renderer.render(path,self.root/"piloto retomado.mp4",work,None,1,180,True)
         self.assertEqual(second["reused_segments"],2)
         self.assertEqual(second["validation"]["sha256"],first["validation"]["sha256"])

@@ -1,15 +1,15 @@
 ---
 name: manga-hq-video-editor-pt
-description: Produz vídeos completos de recap de HQ ou mangá sem anúncios, com gancho, intro, corpo azul/ciano, análise, CTA, outro e mix, a partir de roteiro, áudio, imagens e análise local. Use para montar e renderizar o padrão completo; a criação do roteiro pertence à skill de roteiro.
+description: Edita a história completa de uma HQ ou mangá, em geral 10–30 minutos, com identidade visual original da obra, gancho, intro, análise, CTA, encerramento e mix, sem anúncios. Use com roteiro, áudio, imagens e análise para montar e renderizar o padrão completo; criação do roteiro pertence à skill de roteiro.
 metadata:
   category: content
   status: experimental
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
-# Edição de HQ e mangá no padrão azul
+# Edição narrativa com a identidade da obra
 
-Monte o vídeo completo no padrão analisado: gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e montagem final, sem anúncios. Painéis ciano, fundo azul animado, zooms e fades formam o corpo; a abertura e o final têm tratamento próprio. Leia [references/padrao-manga.md](references/padrao-manga.md) para valores medidos e [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md) para executar todos os módulos e compor o master.
+Monte a história inteira, do começo ao desfecho, em geral 10–30 minutos conforme a obra, sem anúncios: gancho, intro/vinheta, contexto, relato, análise/revelações, CTA e outro. O visual é original e derivado da identidade de cada HQ/mangá. Leia [references/identidade-visual-da-obra.md](references/identidade-visual-da-obra.md) para fundo/paleta e [references/historia-completa-e-duracao.md](references/historia-completa-e-duracao.md) para cobertura/duração; a execução dos módulos está em [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md).
 
 ## Preparar e sincronizar
 
@@ -29,21 +29,21 @@ O contrato está em [references/contrato-da-timeline.md](references/contrato-da-
 ## Montar no perfil
 
 - Base medida: 1920×1080, 16:9, 30000/1001 fps. Vertical é adaptação e exige recompor recortes.
-- Corpo: luminância preto→ciano com traços/rostos legíveis. Isole quadros em vez de manter a página inteira. HQ colorida pode receber o tratamento ou preservar cor por preferência do usuário; registre a escolha.
+- Preserve cor, preto e branco e textura originais dos painéis por padrão. Isole quadros conforme a fala e preserve sua proporção. Ciano é tratamento opcional, escolhido para a identidade específica ou por pedido; não aplique a mesma coloração a todas as obras.
 - Alterne zoom de entrada/saída conforme o foco. Uma amostra cresce cerca de 2× em 9 segundos; use alcance amplo quando preservar a ação, reduzindo-o quando rosto/balão exigir leitura. Crop intencional pode ocorrer, sem cortar o elemento que sustenta a fala.
-- Fundo azul animado e fades curtos revelando esse fundo entre planos. Preserve proporção da imagem e evite saltos de escala dentro de um beat.
-- Produza gancho com imagens coloridas, partículas, aproximações e clarões discretos; em seguida uma intro/vinheta original do projeto. Use a identidade fornecida ou título neutro do episódio sobre o fundo azul. O encerramento usa montagem mais rápida com o material do projeto. Em shorts comprima a vinheta/transição e una módulos quando necessário.
+- Crie fundo original por obra, com paleta, textura, iluminação e atmosfera extraídas das páginas. Use uma imagem de fundo própria com movimento lento e baixa distração; o painel narrativo deve dominar. Sem círculos, paralelogramos ou ornamentos genéricos flutuantes. Fundo ambient discreto é alternativa técnica; não substitui a direção de arte específica. Use fades para revelar esse ambiente e preserve proporção/foco.
+- Produza gancho, intro/vinheta e encerramento coerentes com a mesma identidade: tipografia, textura e acentos visuais discretos escolhidos para a obra. Use a identidade do projeto ou título neutro. O outro mantém ritmo mais rápido; partículas/clarões só entram quando servirem ao clima. Shorts exigem pedido explícito.
 - Não acrescente legendas narrativas por padrão: ausentes nas amostras examinadas. Balões da fonte continuam na imagem. Legendas pedidas são adaptação e precisam de conferência.
-- Use `render_manga.py` como componente do corpo, inclusive planos narrados em cor original. Depois execute a composição de intro silenciosa, títulos, impactos, trilha/efeitos e outro com FFmpeg ou editor disponível. Esses módulos fazem parte da entrega padrão; metadados `production_structure` não os renderizam automaticamente. Confira cada módulo no arquivo final e registre qualquer pendência concreta.
+- Use `render_manga.py` como componente dos painéis, com `visual_identity.background` ou `--background-image` no builder para o fundo específico. Depois execute a composição de intro silenciosa, títulos, impactos, trilha/efeitos e outro com FFmpeg ou editor disponível. Esses módulos fazem parte da entrega padrão; metadados `production_structure` não os renderizam automaticamente. Confira cada módulo no arquivo final e registre qualquer pendência concreta.
 - Exclua propaganda, patrocínio e oferta comercial, tanto dos vídeos de referência quanto das páginas da HQ. CTA de comentário, inscrição/seguir e próximos conteúdos permanece no formato.
 
 Use áudio contínuo na montagem final; concatenar AAC reencodado por beat pode acumular atraso. A vinheta silenciosa precisa de intervalo próprio, preservando o alinhamento do restante da fala. Use trilha e efeitos fornecidos ou camadas originais simples, documentando sua origem; não atribua a música criada à referência. Meça loudness do mix completo, aplique ganho com headroom e confira a saída.
 
 ## Renderizar e revisar
 
-Valide o plano e faça primeiro uma prévia representativa com material real. Confira recortes, ciano, foco, extremos de zoom, fades, mudanças de página e sincronismo. Corrija problemas observados antes do master.
+Valide o plano e faça primeiro uma prévia representativa com material real. Confira identidade, contraste entre painel e fundo, cor original, textura, recortes, foco, zoom, fades e sincronismo. A prévia deve incluir uma cena clara, uma escura e uma de diálogo; evite tratamento que apague o traço ou concorra com a leitura. Corrija os problemas observados antes do master.
 
-Entregue vídeo completo, plano JSON e relatório dos módulos realmente executados. Confira gancho, intro, contexto, corpo, análise/revelações, CTA, outro e mix; ausência de anúncio é requisito. Verifique decodificação completa, duração/cobertura, streams, resolução/fps, loudness e início/fim. Validação técnica não prova fidelidade narrativa: confira também se a imagem sustenta cada frase e se o escopo inteiro foi coberto.
+Entregue vídeo da história inteira, plano JSON, cobertura e relatório dos módulos realmente executados. Use o áudio real e a cobertura para conferir duração; não acelere, corte o desfecho ou repita imagens/falas para forçar a faixa de 10–30 minutos. Confira gancho, intro, contexto, corpo, análise/revelações, CTA, outro e mix; ausência de anúncio é requisito. Verifique decodificação completa, duração/cobertura, streams, resolução/fps, loudness e início/fim. Validação técnica não prova fidelidade narrativa: confira também se a imagem sustenta cada frase e se o escopo inteiro foi coberto.
 
 Declare o que foi renderizado, trechos revisados e adaptações. Helpers testados com mídia sintética e prévia curta não certificam um master de 20 minutos.
 

@@ -26,6 +26,9 @@ O JSON usa `schema_version:1` e `kind:"manga-hq-editing-analysis"`, com:
 - `image_catalog`: páginas/painéis, arquivos, classe, sínteses, descrições, personagens e tags para busca.
 - `shots`: beat→fala→arquivo→página/painel→bbox, descrição, notas de edição e `section_id` quando fornecido.
 - `production_structure`: plano completo sem anúncios, quando presente no roteiro; preserva também módulos silenciosos como vinheta e cartão final. Ver [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
+- `story_coverage`: cobertura declarada/verificada estruturalmente das páginas narrativas e seus beats/evidências.
+- `duration_estimate`: contagem do texto, estimativa de locução e meta10–30min; não são marcas do áudio.
+- `visual_identity` e `visual_identity_root`: direção de arte original da obra e base dos arquivos de fundo.
 - Avisos/limites: dados faltantes e necessidade de alinhar ao áudio gravado.
 
 O Markdown mostra planos e catálogo, inclui links para imagens e identifica páginas excluídas. Use busca por nome, ação ou detalhe; confira a imagem encontrada antes de escolhê-la. Anúncios podem constar no catálogo para identificação, mas nunca são selecionados como planos narrativos.
@@ -42,4 +45,4 @@ A revisão de leitura do roteiro não certifica o zoom final. Se os recortes/mov
 
 Se só a pasta mudou, use `--image-root` para realocar as mesmas imagens. Se mudar roteiro, painel, arquivo ou bbox, atualize as fontes e gere nova análise. Não edite o mapa de planos mantendo fingerprints de outra versão.
 
-O exporter não cria timestamps finais, voz, trilha ou câmera a partir do texto. Campos de câmera já escolhidos podem ser preservados, mas a edição decide movimento e sincronismo com o áudio efetivo.
+O exporter não cria timestamps finais, voz, trilha ou câmera a partir do texto. Consulte [historia-completa-e-duracao.md](historia-completa-e-duracao.md) e [identidade-visual-da-obra.md](identidade-visual-da-obra.md) para preencher a cobertura e a direção de arte dos novos projetos. Campos de câmera já escolhidos podem ser preservados, mas a edição decide movimento e sincronismo com o áudio efetivo.

@@ -387,6 +387,143 @@ class StoryProjectTests(unittest.TestCase):
                 self.script["beats"][0]["evidence_refs"] = refs
                 self.assertTrue(any("evidence_refs" in e for e in story.validate(self.manifest, self.script)))
 
+    def complete_coverage(self):
+        self.script["story_coverage"] = {
+            "mode": "complete", "narrative_page_ids": ["P01"],
+            "page_coverage": [{"page_id": "P01", "included_in_beats": ["B01"],
+                               "rationale": "A descoberta e a decisão estão narradas."}],
+            "review_note": "Revisão factual da página concluída."}
+
+    def test_complete_coverage_requires_all_narrative_pages_but_excludes_ads(self):
+        self.complete_coverage()
+        self.assertEqual(story.validate(self.manifest, self.script), [])
+        self.manifest["pages"][1]["status"] = "narrative"
+        self.assertTrue(any("faltam: P02" in error for error in story.validate(self.manifest, self.script)))
+        self.script["story_coverage"]["mode"] = "partial"
+        self.assertEqual(story.validate(self.manifest, self.script), [])
+
+    def test_complete_coverage_can_reference_multiple_pages_in_one_visual_beat(self):
+        self.complete_coverage()
+        self.manifest["pages"][1]["status"] = "narrative"
+        self.script["beats"][0]["evidence_refs"] = [
+            {"page_id": "P01", "panel_id": "P01-Q01"},
+            {"page_id": "P02", "panel_id": "P02-Q01"}]
+        coverage = self.script["story_coverage"]
+        coverage["narrative_page_ids"].append("P02")
+        coverage["page_coverage"].append({"page_id": "P02", "included_in_beats": ["B01"],
+                                          "rationale": "A reação prolonga a mesma descoberta."})
+        self.assertEqual(story.validate(self.manifest, self.script), [])
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertEqual(len(analysis["shots"]), 1)
+        self.assertEqual(analysis["story_coverage"], coverage)
+        self.assertIn("P02", story.analysis_markdown(analysis))
+
+    def test_declared_coverage_rejects_excluded_unknown_and_unreviewed_pages(self):
+        self.complete_coverage()
+        for pid in ("P02", "P99"):
+            with self.subTest(pid=pid):
+                script = copy.deepcopy(self.script)
+                script["story_coverage"]["narrative_page_ids"].append(pid)
+                self.assertTrue(story.validate(self.manifest, script))
+        self.manifest["pages"][0]["reviewed"] = False
+        self.assertTrue(any("story_coverage: página narrativa sem revisão" in error
+                            for error in story.validate(self.manifest, self.script)))
+
+    def test_coverage_ledger_rejects_unsupported_and_missing_beats_or_entries(self):
+        self.complete_coverage()
+        original = copy.deepcopy(self.script)
+        for refs in ([], ["missing"], ["B01", "B01"]):
+            with self.subTest(refs=refs):
+                script = copy.deepcopy(original)
+                script["story_coverage"]["page_coverage"][0]["included_in_beats"] = refs
+                self.assertTrue(story.validate(self.manifest, script))
+        script = copy.deepcopy(original)
+        script["story_coverage"]["page_coverage"] = []
+        self.assertTrue(any("uma entrada" in error for error in story.validate(self.manifest, script)))
+        self.manifest["pages"][1]["status"] = "narrative"
+        self.script["story_coverage"]["narrative_page_ids"].append("P02")
+        self.script["story_coverage"]["page_coverage"].append({"page_id": "P02", "included_in_beats": ["B01"],
+                                                             "rationale": "Apenas declarar não basta."})
+        self.assertTrue(any("não referencia esta página" in error for error in story.validate(self.manifest, self.script)))
+
+    def test_coverage_malformed_objects_are_rejected_without_crash(self):
+        self.complete_coverage()
+        original = copy.deepcopy(self.script["story_coverage"])
+        values = [None, [], {}, {**original, "mode": []}, {**original, "narrative_page_ids": [None]},
+                  {**original, "page_coverage": [None]}, {**original, "page_coverage": [{"page_id": "P01", "included_in_beats": [None]}]},
+                  {**original, "review_note": []}, {**original, "narrative_page_ids": ["P01", "P01"]},
+                  {**original, "page_coverage": original["page_coverage"] * 2}]
+        for coverage in values:
+            with self.subTest(coverage=coverage):
+                script = copy.deepcopy(self.script)
+                script["story_coverage"] = coverage
+                self.assertTrue(story.validate(self.manifest, script))
+
+    def test_legacy_scripts_are_compatible_but_not_claimed_complete(self):
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertNotIn("story_coverage", analysis)
+        self.assertIn("Cobertura completa ainda não declarada", story.analysis_markdown(analysis))
+
+    def test_duration_estimate_counts_written_words_without_padding_or_timestamps(self):
+        self.script["beats"][0]["narration"] = "Uma pista. Uma decisão."
+        original = copy.deepcopy(self.script)
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        estimate = analysis["duration_estimate"]
+        self.assertEqual(estimate["word_count"], 4)
+        self.assertAlmostEqual(estimate["estimated_narration_seconds"], 4 * 60 / 148, places=3)
+        self.assertFalse(estimate["within_target_range"])
+        self.assertFalse(estimate["timestamps_confirmed"])
+        self.assertEqual(estimate["target_minutes"], [10, 30])
+        self.assertLess(estimate["narration_range_seconds"][0], estimate["estimated_narration_seconds"])
+        self.assertGreater(estimate["narration_range_seconds"][1], estimate["estimated_narration_seconds"])
+        self.assertEqual(self.script, original)
+        self.assertNotIn("start", analysis["shots"][0])
+        self.assertIn("não alongar artificialmente", story.analysis_markdown(analysis))
+        self.script["beats"][0]["narration"] = " ".join(["história"] * 1480)
+        self.assertEqual(story.duration_estimate(self.script)["estimated_narration_seconds"], 600)
+        self.assertTrue(story.duration_estimate(self.script)["within_target_range"])
+        self.script["beats"][0]["narration"] = " ".join(["história"] * 5000)
+        self.assertFalse(story.duration_estimate(self.script)["within_target_range"])
+
+    def test_visual_identity_and_coverage_preserve_semantics_and_root_portability(self):
+        self.complete_coverage()
+        self.script["visual_identity"] = {"background": {"mode": "image", "file": "fundo original #1.png"},
+                                          "art_direction": "Noir chuvoso baseado nas páginas revisadas."}
+        original = copy.deepcopy(self.script)
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            base = Path(directory).resolve()
+            source, out = base / "projeto", base / "export" / "roteiro"
+            source.mkdir()
+            story.build(self.manifest, self.script, out, visual_identity_root=source)
+            analysis = story.load_json(out / "editing-analysis.json")
+            self.assertEqual(analysis["visual_identity"], original["visual_identity"])
+            self.assertEqual((out / analysis["visual_identity_root"]).resolve(), source)
+            self.assertEqual(analysis["source_fingerprints"]["script_sha256"], story.canonical_sha256(original))
+            analysis["visual_identity"]["background"]["file"] = "alterado.png"
+            analysis["story_coverage"]["page_coverage"][0]["included_in_beats"].clear()
+            self.assertEqual(self.script, original)
+        no_root = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertIsNone(no_root["visual_identity_root"])
+
+    def test_cli_identity_root_tracks_script_directory_without_rewriting_metadata(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            base = Path(directory).resolve()
+            source, manifest_dir = base / "roteiro", base / "imagens"
+            source.mkdir()
+            manifest_dir.mkdir()
+            self.script["visual_identity"] = {"background": {"mode": "image", "file": "assets/fundo.png"}}
+            script_path, manifest_path = source / "script.json", manifest_dir / "manifest.json"
+            story.write_json(script_path, self.script)
+            story.write_json(manifest_path, self.manifest)
+            out = base / "export"
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(story.main(["build", "--manifest", str(manifest_path), "--script", str(script_path),
+                                            "--output-dir", str(out)]), 0)
+            analysis = story.load_json(out / "editing-analysis.json")
+            self.assertEqual((out / analysis["visual_identity_root"]).resolve(), source)
+            self.assertEqual(analysis["visual_identity"], self.script["visual_identity"])
+            self.assertEqual(analysis["script"], self.script)
+
 
 if __name__ == "__main__":
     unittest.main()

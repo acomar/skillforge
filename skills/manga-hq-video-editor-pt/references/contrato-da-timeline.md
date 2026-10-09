@@ -48,7 +48,7 @@ Limites são quantizados em frames contínuos, total=ceil(duração_áudio×fps)
   "readiness": "ready",
   "renderable": true,
   "canvas": {"width": 1920, "height": 1080, "fps": "30000/1001"},
-  "profile": "manga-blue-longform-v1",
+  "profile": "comic-identity-longform-v1",
   "audio": {"file": "narracao.wav", "stream_index": 0},
   "beats": [
     {
@@ -59,7 +59,7 @@ Limites são quantizados em frames contínuos, total=ceil(duração_áudio×fps)
       "bbox": [0.05, 0.05, 0.95, 0.4],
       "motion": {"from_scale": 1, "to_scale": 1.8},
       "transition_seconds": 0.4,
-      "color_mode": "manga_cyan",
+      "color_mode": "original",
       "focal_point": [0.5, 0.5],
       "legibility_reviewed": true
     }
@@ -71,7 +71,7 @@ Trecho ilustrativo, não timeline completa: beats reais precisam cobrir todo áu
 
 Quando presentes, `production_structure` e `section_id` são preservados no plano para o agente compor gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. Esses metadados não alteram tempos ou imagens e não inserem módulos silenciosos automaticamente. A composição completa e seu mix estão em [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
 
-`from_scale/to_scale` variam1–2.5 sobre fit com margem; default alterna1→1.8 e1.8→1. `focal_point` é relativo ao recorte. `color_mode` aceita manga_cyan ou original. Fade ocorre dentro de cada beat, sem sobreposição de duração entre beats. O renderer implementa zoom linear e ornamentos originais; não recupera easing/keyframes do projeto de referência. Imagens de edição: PNG/JPG/JPEG/WebP/BMP/TIF/TIFF; GIF inventariado na leitura precisa ser convertido para imagem estática conferida.
+`from_scale/to_scale` variam1–2.5 sobre fit com margem; default alterna1→1.8 e1.8→1. `focal_point` é relativo ao recorte. `color_mode` aceita manga_cyan ou original. Fade ocorre dentro de cada beat, sem sobreposição de duração entre beats. O renderer implementa zoom linear e fundo original de imagem ou ambiente discreto; não recupera easing/keyframes do projeto de referência. Imagens de edição: PNG/JPG/JPEG/WebP/BMP/TIF/TIFF; GIF inventariado na leitura precisa ser convertido para imagem estática conferida.
 
 ## Validar, renderizar e retomar
 
@@ -83,7 +83,7 @@ python scripts/render_manga.py /projeto/timeline.json --output /projeto/master.m
 
 Para validar rascunho, inclua `--preview 640x360` também no validate-only. Prévia reduz resolução, mantendo duração: crie uma timeline curta com áudio correspondente para testar só um trecho. Não é opção automática de “primeiros30s”.
 
-Master exige plano pronto e recortes revisados. Saída MP4 nova evita substituir fontes/entregas. `--resume` reaproveita segmentos do mesmo hash e verifica probe/decode; mudança de imagem, plano ou versão invalida o que precisa ser refeito. Background usa tempo global para não reiniciar a cada beat. Workdir bloqueado indica render ativo ou interrupção; confira o processo antes de remover um lock residual.
+Master exige plano pronto e recortes revisados. Saída MP4 nova evita substituir fontes/entregas. `--resume` reaproveita segmentos do mesmo hash e verifica probe/decode; mudança de imagem, plano ou versão invalida o que precisa ser refeito. O fundo usa tempo global para não reiniciar a cada beat. Confira [identidade-visual-da-obra.md](identidade-visual-da-obra.md) para imagem original, paleta, caminhos, hashes e opções de realocação. `story_coverage` e `duration_estimate` preservam planejamento; duração/frame count continuam sendo calculados pelo áudio efetivo. Workdir bloqueado indica render ativo ou interrupção; confira o processo antes de remover um lock residual.
 
 Renderer normaliza áudio em duas passagens para-17LUFS/-1dBTP antes de AAC e muxa uma faixa global em48kHz estéreo192kbps. Mede novamente a entrega AAC; se o pico ultrapassar-1dBTP, aplica uma atenuação global e verifica novamente. Isso pode deixar LUFS abaixo do alvo em gravações com picos fortes. `--no-loudnorm` mantém nível fornecido; silêncio/não gated também desativa normalização com motivo no relatório.
 

@@ -24,6 +24,7 @@ import subprocess
 import sys
 
 AD_SECTION_KINDS = {"advertisement", "ad", "sponsor", "sponsorship", "commercial", "promotion"}
+IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
 
 class TimelineError(ValueError):
@@ -146,6 +147,90 @@ def relative_media(path, plan_dir):
         return str(Path(path).resolve())
 
 
+def checked_visual_identity(script):
+    """Keep editorial identity metadata while validating renderable controls."""
+    if not isinstance(script, dict):
+        raise TimelineError("Roteiro deve ser objeto JSON.")
+    if "visual_identity" not in script:
+        return None
+    identity = script["visual_identity"]
+    if not isinstance(identity, dict):
+        raise TimelineError("visual_identity deve ser objeto.")
+    background = identity.get("background")
+    if background is None:
+        if "background" in identity:
+            raise TimelineError("visual_identity.background deve ser objeto.")
+        return identity
+    if not isinstance(background, dict):
+        raise TimelineError("visual_identity.background deve ser objeto.")
+    mode = background.get("mode")
+    if mode not in {"image", "ambient"}:
+        raise TimelineError("visual_identity.background.mode deve ser image ou ambient.")
+    if mode == "image":
+        file = background.get("file")
+        if not isinstance(file, str) or not file.strip():
+            raise TimelineError("visual_identity.background.file obrigatório para mode=image.")
+        if "sha256" in background and (not isinstance(background["sha256"], str)
+                or not re.fullmatch(r"[0-9a-f]{64}", background["sha256"])):
+            raise TimelineError("visual_identity.background.sha256 deve ser checksum SHA256 hexadecimal.")
+        for key in ("zoom_from", "zoom_to"):
+            if key in background and not 1 <= finite(background[key], key) <= 1.12:
+                raise TimelineError(f"visual_identity.background.{key} deve estar entre 1 e 1.12.")
+    if "darkness" in background and not 0 <= finite(background["darkness"], "darkness") <= .65:
+        raise TimelineError("visual_identity.background.darkness deve estar entre 0 e 0.65.")
+    if mode == "ambient" and "palette" in background:
+        palette = background["palette"]
+        if (not isinstance(palette, list) or len(palette) != 2
+                or any(not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color)
+                       for color in palette)):
+            raise TimelineError("visual_identity.background.palette deve conter duas cores #RRGGBB.")
+    return identity
+
+
+def resolved_visual_identity(script, root, plan_dir, sources, background_image=None):
+    """Resolve an identity asset once; do not mutate the writer's source object."""
+    original = checked_visual_identity(script)
+    identity = copy.deepcopy(original) if original is not None else None
+    if background_image is not None:
+        path = Path(background_image).resolve()
+        if identity is None:
+            identity = {}
+        background = identity.get("background", {})
+        if background.get("mode") == "image":
+            # Replacing an asset must keep reviewed exposure and motion. The
+            # old checksum belongs to the old bytes, not to these controls.
+            background.pop("sha256", None)
+            background.update(mode="image", file=str(path))
+        else:
+            # Ambient palettes/unused image controls do not become image
+            # settings. Darkness is shared by both renderer modes.
+            background = {"mode": "image", "file": str(path),
+                          **({"darkness": background["darkness"]} if "darkness" in background else {})}
+        identity["background"] = background
+    else:
+        background = identity.get("background", {}) if identity is not None else {}
+        if background.get("mode") != "image":
+            return identity, None
+        file = Path(background["file"])
+        if not file.is_absolute() and root is None:
+            raise TimelineError("Análise sem visual_identity_root; informe --visual-identity-root ou --background-image.")
+        path = file.resolve() if file.is_absolute() else (Path(root)/file).resolve()
+    if not path.is_file():
+        raise TimelineError(f"Fundo de identidade inexistente: {path}")
+    if path.suffix.lower() not in IMAGE_SUFFIXES:
+        raise TimelineError("Fundo de identidade deve ser imagem em formato suportado.")
+    background = identity["background"]
+    actual_hash = sha256(path)
+    if background.get("sha256") and background["sha256"] != actual_hash:
+        raise TimelineError("Fundo de identidade mudou desde a análise (checksum diferente).")
+    background.update(file=relative_media(path, plan_dir), sha256=actual_hash)
+    if background_image is not None:
+        sources["background_override"] = {"file": background["file"], "sha256": actual_hash,
+                                          "method": "explicit-background-image-option"}
+        sources["effective_visual_identity_sha256"] = semantic_sha256(identity)
+    return identity, path
+
+
 def probe_audio(path, stream_index=None):
     path = Path(path).resolve()
     if not path.is_file():
@@ -251,7 +336,7 @@ def checked_evidence(manifest, script, image_root):
             raise TimelineError(f"{pid}: imagem sai do image_root; use caminho relativo ao diretório informado.")
         if not path.is_file():
             raise TimelineError(f"{pid}: imagem inexistente: {path}")
-        if path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}:
+        if path.suffix.lower() not in IMAGE_SUFFIXES:
             raise TimelineError(f"{pid}: formato de imagem não suportado.")
         if path not in verified_files:
             verified_files[path] = sha256(path)
@@ -327,9 +412,14 @@ def draft_frames(beats, duration, fps):
 def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
                 source_paths=(), alignment_path=None, confirm_alignment=False,
                 draft=False, audio_stream=None, fps="30000/1001", width=1920,
-                height=1080):
+                height=1080, visual_identity_root=None, background_image=None,
+                duration_estimate=None):
     audio_path, output_path = [Path(p).resolve() for p in (audio_path, output_path)]
+    identity, background_path = resolved_visual_identity(
+        script, visual_identity_root, output_path.parent, sources, background_image)
     protected = {audio_path, *(Path(p).resolve() for p in source_paths)}
+    if background_path is not None:
+        protected.add(background_path)
     if alignment_path is not None:
         protected.add(Path(alignment_path).resolve())
     if output_path in protected or output_path.exists():
@@ -367,7 +457,7 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
         transition = finite(beat.get("transition_seconds", min(.4, duration/4)), f"{beat['id']} transition_seconds")
         if not 0 <= transition <= min(1, duration/2):
             raise TimelineError(f"{beat['id']}: fade deve estar entre 0 e min(1s,duração/2).")
-        color = beat.get("color_mode", "manga_cyan")
+        color = beat.get("color_mode", "original")
         if color not in {"manga_cyan", "original"}:
             raise TimelineError(f"{beat['id']}: color_mode inválido.")
         row = {"id": beat["id"], "start": sf/float(rate), "end": ef/float(rate),
@@ -386,13 +476,22 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
         planned.append(row)
     plan = {"schema_version": 1, "readiness": "ready" if ready else "draft", "renderable": ready,
             "canvas": {"width": width, "height": height, "fps": str(rate)},
-            "profile": "manga-blue-longform-v1", "duration_seconds": frames/float(rate), "total_frames": frames,
+            "profile": "comic-identity-longform-v1", "duration_seconds": frames/float(rate), "total_frames": frames,
             "audio": {"file": relative_media(audio_path, output_path.parent), **audio},
             "alignment": {"method": method, "confirmed": method != "estimated-word-count", "frame_quantized": True,
                           "precision_claim": "reviewed beat intervals; no forced alignment performed by this helper"},
             "sources": sources,
             "beats": planned,
             "limitations": (["Tempos por peso de palavras são estimativas; revise contra o áudio e crie alignment confirmado antes de master."] if not ready else ["Revisão declarada das marcas/recortes não substitui conferir o preview, sincronismo perceptivo e conteúdo."])}
+    if identity is not None:
+        plan["visual_identity"] = identity
+    if "story_coverage" in script:
+        if not isinstance(script["story_coverage"], dict):
+            raise TimelineError("story_coverage deve ser objeto de revisão editorial.")
+        plan["story_coverage"] = copy.deepcopy(script["story_coverage"])
+    if duration_estimate is not None:
+        plan["duration_estimate"] = copy.deepcopy(duration_estimate)
+        plan["limitations"].append("duration_estimate é planejamento por palavras; duração, frames e sincronismo desta timeline vêm do áudio real e do alignment.")
     if "production_structure" in script:
         plan["production_structure"] = copy.deepcopy(script["production_structure"])
         plan["limitations"].append("production_structure preserva o plano de gancho/intro/desenvolvimento/encerramento; módulos sem beats exigem composição posterior e não foram renderizados por este helper.")
@@ -406,7 +505,8 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
 
 def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment_path=None,
                confirm_alignment=False, draft=False, image_root=None, audio_stream=None,
-               fps="30000/1001", width=1920, height=1080):
+               fps="30000/1001", width=1920, height=1080,
+               visual_identity_root=None, background_image=None):
     """Original manifest/script API retained for existing projects."""
     manifest_path, script_path = [Path(p).resolve() for p in (manifest_path, script_path)]
     return _build_plan(load_json(manifest_path), load_json(script_path), audio_path,
@@ -415,7 +515,9 @@ def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment
                                 "script_sha256": sha256(script_path)},
                        source_paths=(manifest_path, script_path), alignment_path=alignment_path,
                        confirm_alignment=confirm_alignment, draft=draft,
-                       audio_stream=audio_stream, fps=fps, width=width, height=height)
+                       audio_stream=audio_stream, fps=fps, width=width, height=height,
+                       visual_identity_root=Path(visual_identity_root).resolve() if visual_identity_root is not None else script_path.parent,
+                       background_image=background_image)
 
 
 def checked_analysis(analysis):
@@ -438,6 +540,19 @@ def checked_analysis(analysis):
             raise TimelineError(f"Análise desatualizada: fingerprint do {name} diverge do objeto embutido.")
         hashes[f"{name}_semantic_sha256"] = actual
     checked_production_structure(script)
+    checked_visual_identity(script)
+    if "visual_identity" in script or "visual_identity" in analysis:
+        if analysis.get("visual_identity") != script.get("visual_identity"):
+            raise TimelineError("visual_identity da análise diverge do roteiro embutido.")
+    if "story_coverage" in script or "story_coverage" in analysis:
+        if (not isinstance(script.get("story_coverage"), dict)
+                or analysis.get("story_coverage") != script["story_coverage"]):
+            raise TimelineError("story_coverage da análise diverge do roteiro embutido ou não é objeto.")
+    if "duration_estimate" in analysis:
+        estimate = analysis["duration_estimate"]
+        if (not isinstance(estimate, dict) or estimate.get("kind") != "planning-estimate"
+                or estimate.get("timestamps_confirmed") is not False):
+            raise TimelineError("duration_estimate deve ser planning-estimate com timestamps_confirmed=false.")
     if ("production_structure" in script or "production_structure" in analysis):
         if analysis.get("production_structure") != script.get("production_structure"):
             raise TimelineError("production_structure da análise diverge do roteiro embutido.")
@@ -504,7 +619,8 @@ def checked_analysis(analysis):
 def build_from_analysis(analysis_path, audio_path, output_path, *, alignment_path=None,
                         confirm_alignment=False, draft=False, image_root=None,
                         audio_stream=None, fps="30000/1001", width=1920, height=1080,
-                        confirm_legibility=False):
+                        confirm_legibility=False, visual_identity_root=None,
+                        background_image=None):
     analysis_path = Path(analysis_path).resolve()
     analysis = load_json(analysis_path)
     manifest, script, hashes = checked_analysis(analysis)
@@ -524,11 +640,24 @@ def build_from_analysis(analysis_path, audio_path, output_path, *, alignment_pat
         if not isinstance(root_hint, str) or not root_hint.strip():
             raise TimelineError("Análise sem image_root; informe --image-root com a pasta de imagens.")
         images = (analysis_path.parent / root_hint).resolve()
+    if visual_identity_root is not None:
+        identity_root = Path(visual_identity_root).resolve()
+    elif "visual_identity_root" not in analysis:
+        # A hand-written/legacy analysis can place assets next to itself. New
+        # exports include an explicit root, which must not fall back to cwd.
+        identity_root = analysis_path.parent
+    else:
+        hint = analysis["visual_identity_root"]
+        if hint is not None and (not isinstance(hint, str) or not hint.strip()):
+            raise TimelineError("visual_identity_root deve ser caminho não vazio ou null.")
+        identity_root = (analysis_path.parent/hint).resolve() if hint is not None else None
     return _build_plan(manifest, script, audio_path, output_path, images=images,
                        sources=sources,
                        source_paths=(analysis_path,), alignment_path=alignment_path,
                        confirm_alignment=confirm_alignment, draft=draft,
-                       audio_stream=audio_stream, fps=fps, width=width, height=height)
+                       audio_stream=audio_stream, fps=fps, width=width, height=height,
+                       visual_identity_root=identity_root, background_image=background_image,
+                       duration_estimate=analysis.get("duration_estimate"))
 
 
 def main(argv=None):
@@ -547,6 +676,10 @@ def main(argv=None):
                         help="Com --analysis, declara revisão real dos recortes e movimentos; não confirma sincronismo.")
     parser.add_argument("--draft", action="store_true")
     parser.add_argument("--image-root", type=Path)
+    parser.add_argument("--visual-identity-root", type=Path,
+                        help="Pasta para realocar arquivos relativos da identidade visual.")
+    parser.add_argument("--background-image", type=Path,
+                        help="Imagem original de fundo; override registra checksum sem alterar a análise.")
     parser.add_argument("--audio-stream", type=int)
     parser.add_argument("--fps", default="30000/1001")
     parser.add_argument("--width", type=int, default=1920)
@@ -563,7 +696,9 @@ def main(argv=None):
         options = {"alignment_path": args.alignment, "confirm_alignment": args.confirm_alignment,
                    "draft": args.draft, "image_root": args.image_root,
                    "audio_stream": args.audio_stream, "fps": args.fps,
-                   "width": args.width, "height": args.height}
+                   "width": args.width, "height": args.height,
+                   "visual_identity_root": args.visual_identity_root,
+                   "background_image": args.background_image}
         if args.analysis is not None:
             plan = build_from_analysis(args.analysis, args.audio, args.output,
                                        confirm_legibility=args.confirm_legibility, **options)

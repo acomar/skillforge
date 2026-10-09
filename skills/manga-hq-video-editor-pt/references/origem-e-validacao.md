@@ -32,6 +32,15 @@ Atualização 0.3.0: por preferência explícita do projeto, o padrão completo 
 - Estrutura individual e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
 - Renderer do corpo não foi alterado. Gancho/intro/outro, trilha e efeitos são executados pelo agente na composição final; registrar seções não comprova que foram renderizadas. Não houve novo master narrado completo nesta atualização.
 
+Atualização 0.4.0: o padrão passa a contar toda a história fornecida, visando 10–30 minutos conforme extensão e complexidade. O fundo é original por obra, com cores dos painéis preservadas; o antigo fundo azul com formas permanece somente como observação histórica das referências.
+
+- Roteiro/exportador: 36 testes aprovados. A cobertura completa exige todas as páginas narrativas revisadas e ligadas aos beats ou evidências; a estimativa por palavras e a identidade visual atravessam a análise sem criar marcas de áudio.
+- Builder: 54 testes aprovados, incluindo integração exportação→consumo com PNG/WAV, resolução de fundos relativos, realocação, hashes, preservação da fonte e substituição de imagem sem perder os controles de escuridão/zoom revisados.
+- Renderer 1.1.0: 26 testes aprovados, com renderização real de fundo próprio, cores originais, fallback ambiente discreto, RGBA, retomada e rejeição de ativo alterado. A revisão independente incluiu um caso real com transparência.
+- Nova prévia visual de Batman: 21,021s, 960×540, 630 frames, três recortes reais, fundo original gerado para esta obra e silêncio. Decodificação completa aprovada; início, meio e fim inspecionados para contraste, textura e legibilidade. Esta prévia não é um master narrado de 10–30 minutos e não comprova sincronismo de voz.
+- Estrutura das duas skills, recursos relativos, JSON, pacotes e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
+- A verificação estrutural da cobertura não certifica fidelidade factual. Não houve master longo narrado revisado nesta atualização; o status continua `experimental`. Os módulos de intro/outro/mix continuam sendo executados pelo agente na composição final, além do renderer de painéis.
+
 Para repetir a partir da raiz do SkillForge:
 
 ```text

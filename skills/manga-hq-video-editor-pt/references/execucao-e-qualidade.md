@@ -12,7 +12,7 @@ O caminho direto do builder usa marcas por beat confirmadas. O agente deve local
 
 Confira crop no começo, meio e fim. Boxes relativas à página precisam excluir cenas vizinhas quando essas cenas contradizem a fala. Um zoom2× pode ser apropriado para um rosto, mas cortar o gesto que prova a ação é falha editorial. Para leitura de balão, prefira um plano estável/menor até a fala correspondente terminar.
 
-Fundo e ornamentos gerados são originais: transferem paleta/movimento, sem reproduzir arquivo ou logotipo da referência. Uma forma branca que cruza um rosto pode exigir reposicionamento. Não há fundamento para apagar balões da HQ por padrão.
+Crie fundo original segundo a identidade da obra, preserve a arte dos painéis e confira o contraste. O ambiente não deve apresentar formas geométricas flutuantes nem detalhes que disputem a atenção com rostos e balões. Não há fundamento para apagar balões da HQ por padrão.
 
 A renderização por segmentos reduz memória, permite retomada e mantém uma única faixa de áudio contínua no mux final. Registre plan/hash e opções do render. Reuse somente segmentos do mesmo plano e mídia com decode/duração conferidos; mudança em uma imagem precisa invalidar o segmento correspondente.
 
@@ -26,9 +26,9 @@ Trilha fornecida pode ficar discreta sob a voz, com redução quando prejudicar 
 
 ## Verificação final
 
-1. Validador aceita materiais e cobertura; decode completo não apresenta erros.
+1. `story_project` valida o registro de cobertura das páginas e seus vínculos aos beats/evidências. Builder/render preservam esse planejamento e validam materiais, sincronismo/cobertura do áudio e decode; não certificam fatos ou completude narrativa automaticamente. Confira editorialmente os acontecimentos e o desfecho.
 2. Resolução/fps/duração final conferidos; diferença vídeo-áudio ≤um frame de vídeo, com tolerância de packet/padding do codec explicitada.
-3. Fluxo visual acompanha sujeito/ação/tempo da narração; abertura paga promessa e fecho tem resultado.
+3. Fluxo visual acompanha sujeito/ação/tempo da narração; história inteira e desfecho estão cobertos. A duração10–30min é meta editorial; o resultado segue o áudio real, sem cortar ou repetir para forçar o relógio.
 4. Gancho, intro/vinheta, contexto, história, análise/revelações, CTA e montagem final foram compostos e revistos. Não há propaganda/patrocínio, página de anúncio acidental, corte que destrói rosto/gesto, nem fade que deixa tela preta inexplicada. Seções declaradas só nos metadados ainda não contam como executadas.
 5. Loudness e pico medidos no arquivo final; voz entendível e nenhuma outra faixa de idioma somada por acidente.
 6. Informe duração renderizada, resolução da prévia, trechos revisados e diferenças do perfil.

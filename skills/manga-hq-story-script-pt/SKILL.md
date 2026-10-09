@@ -1,19 +1,19 @@
 ---
 name: manga-hq-story-script-pt
-description: Cria roteiro completo de recap de HQ ou mangá em português, sem anúncios, com gancho, intro, história, análise, CTA e encerramento, e exporta o mapa de imagens/painéis para edição. Use para transformar páginas fornecidas em narração e plano de produção; renderização pertence à skill de edição.
+description: Conta a história inteira de uma HQ ou mangá em português, mirando 10–30 minutos conforme o material, sem anúncios, e entrega roteiro, cobertura da história, identidade visual e mapa de imagens para edição. Use para narrar quadrinhos completos com gancho, intro, análise, CTA e encerramento; renderização pertence à skill de edição.
 metadata:
   category: content
   status: experimental
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
-# Roteiro de HQ e mangá no padrão azul
+# Roteiro completo de HQ e mangá
 
-Transforme páginas locais em roteiro e plano de um vídeo completo no padrão analisado, sem publicidade. A estrutura padrão reúne gancho, intro/vinheta, contexto, recap causal, comentários e análise, revelações, chamada para interação e montagem de encerramento. Leia [references/padrao-manga.md](references/padrao-manga.md) para as evidências e [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md) para produzir todos os módulos. Comprima os módulos para vídeos curtos mantendo suas funções.
+Conte a história inteira fornecida, do começo ao desfecho, mirando 10–30 minutos conforme a extensão e a complexidade da obra, sem publicidade. A estrutura reúne gancho, intro/vinheta, contexto, relato causal, comentários/análise, revelações, CTA e encerramento. Leia [references/historia-completa-e-duracao.md](references/historia-completa-e-duracao.md) para cobertura e duração e [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md) para os módulos. Shorts são produzidos apenas por pedido explícito; o padrão é a história completa.
 
 ## Entradas e leitura
 
-- Use pasta de imagens, escopo da história e duração/formato pedidos. Se duração faltar, escolha uma versão proporcional ao material, sem alongar com fatos inventados. Para história completa, examine todas as páginas narrativas e preserve o desfecho.
+- Use a pasta inteira como escopo padrão, examine todas as páginas narrativas e preserve acontecimentos, relações causais, pistas, mudanças temporais e desfecho. Planeje 10–30 minutos de acordo com unidades narrativas e densidade de diálogo, não apenas quantidade de arquivos. Conte também as páginas duplas. Se a fidelidade pedir duração fora da faixa, registre isso; não invente nem repita eventos para preencher tempo, e não encurte omitindo o final.
 - Inventarie em ordem natural, com IDs, dimensões e hashes; use `scripts/story_project.py inventory --help`. Verifique orientação de leitura, páginas duplas e capítulos: HQ ocidental geralmente esquerda→direita; manga pode ser direita→esquerda.
 - Examine visualmente todas as páginas; amplie balões decisivos e quadros pequenos. OCR localiza e confere texto, mas não prova quem fala, ordem dos painéis ou ação. Sem visão disponível, registre a limitação e obtenha leitura verificável antes de entregar roteiro factual.
 - Classifique capa, narrativa, propaganda e editorial. O inventário inicial é provisório: confirme cada página utilizada com `reviewed: true`. Anúncios e personagens apresentados para edições futuras não são acontecimentos da história atual.
@@ -36,6 +36,8 @@ Entregue `narration.txt` com **apenas o texto que deve ser falado**, sem tempos,
 
 Gere obrigatoriamente **`editing-analysis.json` e `editing-analysis.md`**: a análise que a edição usa para encontrar as imagens. Ela deve reunir catálogo pesquisável de páginas/painéis, descrições visuais e o mapa trecho narrado→arquivo→painel→recorte, com motivos de escolha e material excluído. Leia [references/analise-para-edicao.md](references/analise-para-edicao.md). O JSON inclui roteiro e manifesto para ser usado diretamente pelo editor; o Markdown facilita conferência e busca humana.
 
+Defina também `visual_identity` a partir da paleta, traço, gênero, cenários e clima da obra; veja [references/identidade-visual-da-obra.md](references/identidade-visual-da-obra.md). O fundo deve ser original, discreto e próprio daquela obra; preserve a arte dos painéis por padrão.
+
 Em `editorial_notes` de cada beat, explique por que o painel sustenta a fala e qual detalhe deve permanecer visível; mantenha essas notas fora do texto narrado. Registre `production_structure.sections` no roteiro e `section_id` nos beats para a edição reconhecer gancho, intro, corpo, análise, CTA e outro. Seções silenciosas, como uma vinheta, ficam no plano de produção sem criar fala ou evidência fictícia. A análise deve preservar essa estrutura junto do mapa de imagens.
 
 Use o helper para conferir integridade e gerar narração limpa:
@@ -47,10 +49,11 @@ python scripts/story_project.py build --help
 
 O comando `build` exporta a narração e os dois arquivos de análise a partir do roteiro/manifesto revisados. Informe a pasta real das imagens com `--image-root` para guardar a localização no JSON. O helper inventaria, valida e organiza metadados; **não lê imagens nem escreve a história automaticamente**. Se faltarem descrições, complete a leitura visual antes de finalizar a análise; o helper apenas sinaliza a falta.
 
-Leia a narração em voz alta ou estime duração com a cadência do perfil, registrando a estimativa. A duração final vem do áudio gravado, alinhado na edição. Não imponha 12–20 minutos a uma história que pede menos tempo.
+Planeje a narração completa para 10–30 minutos, usando aproximadamente 140–155 palavras/min e pausas proporcionais ao drama. Uma história menor ocupa a parte curta da faixa; uma obra mais extensa ou complexa pede maior duração. A meta guia o nível de detalhe, sem autorizar omissão, fato inventado ou repetição artificial. Entregue `story_coverage` com o vínculo de todas as páginas narrativas aos beats/evidências e registre a estimativa; o áudio gravado define a duração final. Preserve os casos em que o material realmente exige menos de 10 ou mais de 30 minutos, explicando o motivo. Não divida ou transforme em short automaticamente.
 
 ## Conferência final
 
+- Todas as páginas narrativas revisadas têm cobertura verificável no roteiro; começo, desenvolvimento e desfecho estão presentes, com duração estimada para a história inteira.
 - Toda afirmação factual decisiva tem evidência identificável; nomes, causas e cronologia foram conferidos.
 - Cada beat tem imagem narrativa revisada e recorte coerente; páginas excluídas não entram por acidente.
 - O texto resolve a promessa inicial, evita repetição para preencher tempo e separa interpretação de fato.

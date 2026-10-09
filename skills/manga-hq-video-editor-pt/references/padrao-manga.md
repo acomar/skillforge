@@ -1,6 +1,9 @@
 # Perfil manga azul — evidências e aplicação
 
-Perfil `manga-blue-longform-v1`, versão0.2.0, extraído em2026-10-09 com `video-editing-longform-pt`. Quatro arquivos horizontais de12:49 a20:11, total68:33.369. Foram concluídos16 capítulos de análise computacional e ASR local da faixa portuguesa inteira dos quatro. A revisão visual cobriu208 amostras regulares de20s e intervalos densos de1fps em aberturas, corpo e finais. Isso não equivale a assistir continuamente todos os vídeos com imagem e som. A mesma versão deste perfil acompanha as duas skills para uso independente.
+Referência histórica `manga-blue-longform-v1`, extraída originalmente na versão 0.1.0 em 2026-10-09 com `video-editing-longform-pt`. Quatro arquivos horizontais de12:49 a20:11, total68:33.369. Foram concluídos16 capítulos de análise computacional e ASR local da faixa portuguesa inteira dos quatro. A revisão visual cobriu208 amostras regulares de20s e intervalos densos de1fps em aberturas, corpo e finais. Isso não equivale a assistir continuamente todos os vídeos com imagem e som. A mesma versão deste perfil acompanha as duas skills para uso independente.
+
+
+Aplicação atual `comic-identity-longform-v1`: história inteira, normalmente10–30min, sem anúncios; direção visual original por obra e cor do quadrinho preservada. O fundo azul com formas e o ciano abaixo são observações das referências, não o visual padrão atual. Leia [historia-completa-e-duracao.md](historia-completa-e-duracao.md) e [identidade-visual-da-obra.md](identidade-visual-da-obra.md).
 
 ## Roteiro e storytelling
 

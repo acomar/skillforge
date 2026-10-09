@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "profile_id": "manga-blue-longform-v1",
-  "version": "0.2.0",
+  "profile_id": "comic-identity-longform-v1",
+  "version": "0.3.0",
   "language": "pt-BR",
   "corpus": [
     {
@@ -177,17 +177,28 @@
       "cta",
       "outro"
     ],
-    "intro_identity": "project-brand-or-original-neutral-episode-title",
+    "intro_identity": "project brand or neutral title matching the work-specific visual identity",
     "opening_color_mode": "original",
-    "outro": "faster montage with project assets",
-    "music_and_effects": "project-provided or original layers; document provenance and actual use"
+    "outro": "faster montage with project assets and the same work-specific identity",
+    "music_and_effects": "project-provided or original layers; document provenance and actual use",
+    "story_scope": "entire supplied narrative from beginning through ending",
+    "target_duration_minutes": [
+      10,
+      30
+    ],
+    "shorts": "explicit request only",
+    "visual_style": "original per-work art direction based on observed source identity",
+    "background": "original quiet image or restrained ambient palette, no floating geometric ornaments",
+    "foreground_color_mode": "original",
+    "manga_cyan": "optional per-work adaptation or explicit request"
   },
-  "implementation_boundary": "The default skill workflow produces the complete no-advertising pattern. Helpers preserve production structure and support evidence mapping, reviewed beat alignment and blue/cyan or original-color narrated panels. Silent intro/sting, titles, music, effects and final montage require the agent to execute additional project-specific composition. Metadata alone does not render these modules. Defaults are adaptations, not recovered project values.",
+  "implementation_boundary": "Helpers carry complete-story coverage, narration-duration estimates and source-specific visual identity. The builder resolves background assets and the renderer supports original panel colors and a custom image background with restrained motion; missing identity uses a quiet ambient fallback. Silent intro/outro, titles, music and effects still require agent composition. Narration estimates do not replace recorded audio or certify factual completeness. Measured reference values remain in observed/corpus.",
   "limitations": [
     "Shot detector .3 misses blue body fades: candidates are not shots",
     "ASR names/counts/punctuation may be wrong; counts include ads and CTA",
     "Visual review consists of all macro samples plus dense ranges, not continuous full playback",
     "Mix loudness measured on selected full track; voice/music stems and exact processing unavailable",
     "Zoom boxes/palette measured on sampled encoded frames, not original keyframes/LUT"
-  ]
+  ],
+  "reference_profile_id": "manga-blue-longform-v1"
 }

@@ -39,8 +39,8 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 
 - [skillforge-maintainer](skills/skillforge-maintainer/SKILL.md): criar, revisar e manter esta biblioteca de skills.
 - [video-editing-longform-pt](skills/video-editing-longform-pt/SKILL.md): analisar referências e recriar ou editar vídeos longos, com capítulos, retomada e validação. Status experimental.
-- [manga-hq-story-script-pt](skills/manga-hq-story-script-pt/SKILL.md): examinar HQ/mangá e planejar roteiro completo sem anúncios, com gancho, intro, análise, CTA, outro e mapa de falas para imagens/painéis. Status experimental.
-- [manga-hq-video-editor-pt](skills/manga-hq-video-editor-pt/SKILL.md): produzir o padrão completo sem anúncios, com gancho, intro, corpo azul/ciano, análise, CTA, outro e mix. Inclui builder e renderer do corpo, com composição dos módulos finais. Status experimental.
+- [manga-hq-story-script-pt](skills/manga-hq-story-script-pt/SKILL.md): contar a história inteira em geral10–30min, sem anúncios, com gancho, intro, análise, CTA, outro, identidade da obra e mapa de imagens/painéis. Status experimental.
+- [manga-hq-video-editor-pt](skills/manga-hq-video-editor-pt/SKILL.md): editar a história inteira com fundo original por obra, cor preservada, gancho, intro, análise, CTA, outro e mix, sem anúncios. Inclui builder e renderer dos painéis e composição final. Status experimental.
 
 ## Organização e uso
 

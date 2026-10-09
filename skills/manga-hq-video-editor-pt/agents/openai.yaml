@@ -1,4 +1,4 @@
 interface:
   display_name: "Editor de HQ e mangá"
-  short_description: "Vídeo completo com intro, corpo azul e outro, sem anúncios"
-  default_prompt: "Use $manga-hq-video-editor-pt para produzir o padrão completo sem anúncios: gancho, intro, corpo azul/ciano, análise, CTA, encerramento e mix. Use editing-analysis.json para localizar as imagens e compor os módulos planejados; renderize e revise uma prévia."
+  short_description: "História completa com visual original da obra, sem anúncios"
+  default_prompt: "Use $manga-hq-video-editor-pt para editar a história inteira de10–30min com identidade visual original da obra, gancho, intro, análise, CTA, encerramento e mix, sem anúncios. Use editing-analysis.json para localizar as imagens e compor os módulos planejados; renderize e revise uma prévia."

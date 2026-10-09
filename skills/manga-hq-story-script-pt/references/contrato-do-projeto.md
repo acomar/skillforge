@@ -38,7 +38,7 @@ Use `--recursive` quando as páginas estiverem em subpastas. `--classify arquivo
 
 Classes: `narrative`, `cover`, `advertisement`, `editorial`. Direções: `left-to-right` ou `right-to-left`. IDs são estáveis e únicos, sem formato numérico obrigatório. `bbox` é XYXY entre 0 e 1 com x1<x2 e y1<y2. O inventário gera `file` relativo à pasta de imagens fornecida. **Registre essa pasta base no handoff e passe `--image-root /projeto/imagens` ao builder da edição** quando o manifesto ficar em `/projeto`, como no exemplo. Sem `--image-root`, o builder resolve pelo diretório do manifesto; nesse caso ajuste os paths ou salve o manifesto junto às imagens. O validador de roteiro confere a sintaxe dos paths; o builder verifica arquivos reais e hashes.
 
-Campos adicionais, como síntese, contexto temporal, evidência e `legibility_reviewed`, podem registrar decisões editoriais. `reviewed` confirma leitura/classificação; não prova que um zoom extremo foi conferido.
+Campos adicionais, como síntese, contexto temporal, evidência e `legibility_reviewed`, podem registrar decisões editoriais. Para novos projetos completos, use `story_coverage` conforme [historia-completa-e-duracao.md](historia-completa-e-duracao.md) e `visual_identity` conforme [identidade-visual-da-obra.md](identidade-visual-da-obra.md). A análise exporta esses campos e uma estimativa de duração baseada no texto. O caminho do recurso de fundo resolve pela pasta do roteiro e recebe raiz própria no handoff. `reviewed` confirma leitura/classificação; não prova que um zoom extremo foi conferido.
 
 ## Roteiro
 

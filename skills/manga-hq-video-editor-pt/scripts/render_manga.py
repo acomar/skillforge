@@ -21,8 +21,9 @@ import subprocess
 import sys
 from typing import Any
 
-VERSION = "1.0.1"
-PROFILE = "manga-blue-longform-v1"
+VERSION = "1.1.0"
+PROFILE = "comic-identity-longform-v1"
+SUPPORTED_PROFILES = {PROFILE, "manga-blue-longform-v1"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
 
 
@@ -124,6 +125,53 @@ def frame_rate(value: Any) -> Fraction:
     return rate
 
 
+def validate_background(identity: Any, base: Path, tools: dict[str, str],
+                        timeout: float) -> dict[str, Any]:
+    """Resolve a quiet ambient fallback or a supplied, reviewed art-direction asset."""
+    if identity is None:
+        identity = {}
+    if not isinstance(identity, dict):
+        raise RenderError("visual_identity must be an object")
+    supplied = identity.get("background", {})
+    if not isinstance(supplied, dict):
+        raise RenderError("visual_identity.background must be an object")
+    mode = supplied.get("mode", "ambient")
+    if mode not in {"image", "ambient"}:
+        raise RenderError("visual_identity.background.mode must be image or ambient")
+    darkness = number(supplied.get("darkness", .18 if mode == "image" else 0),
+                      "visual_identity.background.darkness")
+    if not 0 <= darkness <= .65:
+        raise RenderError("visual_identity.background.darkness must be within 0..0.65")
+    background = {"mode": mode, "darkness": darkness}
+    if mode == "ambient":
+        palette = supplied.get("palette", ["#161A22", "#242A34"])
+        if (not isinstance(palette, list) or len(palette) != 2
+                or any(not isinstance(color, str) or re.fullmatch(r"#[0-9a-fA-F]{6}", color) is None
+                       for color in palette)):
+            raise RenderError("visual_identity.background.palette needs two #RRGGBB colors")
+        background["palette"] = [color.upper() for color in palette]
+        return background
+    image = source_path(supplied.get("file"), base, "visual_identity.background.file")
+    if image.suffix.lower() not in IMAGE_EXTENSIONS:
+        raise RenderError("visual_identity.background.file must be a supported still image")
+    metadata = probe(image, tools, timeout)
+    streams = [stream for stream in metadata.get("streams", []) if stream.get("codec_type") == "video"]
+    if len(streams) != 1:
+        raise RenderError("visual_identity.background.file must decode to one video stream")
+    width, height = int(streams[0].get("width", 0)), int(streams[0].get("height", 0))
+    if not (2 <= width <= 30000 and 2 <= height <= 30000):
+        raise RenderError("Invalid dimensions in visual_identity.background.file")
+    digest = file_hash(image)
+    expected_hash(digest, supplied.get("sha256"), "visual_identity.background.file")
+    start = number(supplied.get("zoom_from", 1), "visual_identity.background.zoom_from")
+    end = number(supplied.get("zoom_to", 1.035), "visual_identity.background.zoom_to")
+    if not (1 <= start <= 1.12 and 1 <= end <= 1.12):
+        raise RenderError("Background zoom scales must be between 1 and 1.12")
+    background.update(file=str(image), sha256=digest, width=width, height=height,
+                      zoom_from=start, zoom_to=end)
+    return background
+
+
 def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
                   preview: tuple[int, int] | None = None) -> dict[str, Any]:
     plan_path = plan_path.resolve()
@@ -144,8 +192,10 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
     rate = frame_rate(canvas.get("fps", "30000/1001"))
     frame_seconds = 1 / float(rate)
     profile = data.get("profile", PROFILE)
-    if profile != PROFILE:
+    if profile not in SUPPORTED_PROFILES:
         raise RenderError(f"Unsupported profile: {profile}; expected {PROFILE}")
+    visual_identity = data.get("visual_identity", {})
+    background = validate_background(visual_identity, plan_path.parent, tools, timeout)
     audio = data.get("audio")
     if not isinstance(audio, dict) or "stream_index" not in audio:
         raise RenderError("audio.file and an explicit absolute audio.stream_index are required")
@@ -252,7 +302,7 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
                             f"{identifier}.transition_seconds")
         if not (0 <= transition <= 1 and transition * 2 <= beat_seconds + 1e-7):
             raise RenderError(f"{identifier} fade must be at most 1 second and half the beat duration")
-        mode = item.get("color_mode", "manga_cyan")
+        mode = item.get("color_mode", "original")
         if mode not in {"manga_cyan", "original"}:
             raise RenderError(f"{identifier}.color_mode must be manga_cyan or original")
         if preview is None and item.get("legibility_reviewed") is not True:
@@ -278,42 +328,48 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
                       "duration": audio_duration, "duration_source": "stream" if "duration" in stream else "container",
                       "start_time": stream.get("start_time"), "sha256": audio_hash},
             "frames": target_frames, "duration": target_frames * frame_seconds,
-            "beats": beats, "timing_adjustments": adjustments, "preview": preview is not None,
+            "beats": beats, "background": background,
+            "visual_identity": visual_identity,
+            "timing_adjustments": adjustments, "preview": preview is not None,
             "limitations": ["Image legibility and focal point are human/editorial review decisions.",
-                            "Linear zoom and original generated background approximate the style; source keyframes are not recovered.",
+                            "Background assets and palette require editorial review; the quiet ambient fallback is not a complete identity design.",
+                            "Linear panel zoom and slow background drift are original motion; source keyframes are not recovered.",
                             "Fades occur inside each beat; adjacent beats do not overlap.",
                             "Only the selected supplied audio stream is used. No music or speech is generated."]}
 
 
-def background_filter(width: int, height: int, fps: str, duration: float, offset: float) -> str:
-    """Original shapes; T includes timeline offset to avoid resets between panels."""
+def background_filter(width: int, height: int, fps: str, duration: float, offset: float,
+                      background: dict[str, Any] | None = None) -> str:
+    """Low-contrast textured ambient fallback; no symbols, particles or geometry."""
+    background = background or {"palette": ["#161A22", "#242A34"], "darkness": 0}
     bg_width = 320
     bg_height = max(90, round(320 * height / width / 2) * 2)
     clock = f"(T+{offset:.9f})"
-    cx = f"(19+8*sin({clock}*0.17))"
-    cy = f"(H*0.84+5*cos({clock}*0.13))"
-    circle = f"lt(abs(sqrt((X-{cx})*(X-{cx})+(Y-{cy})*(Y-{cy}))-17),1)"
-    dx = f"(W*0.9+8*sin({clock}*0.11))"
-    dy = f"(H*0.78+6*cos({clock}*0.19))"
-    diamond = f"lt(abs(abs(X-{dx})+abs(Y-{dy})-21),1)"
-    dx2 = f"(W*0.12+5*cos({clock}*0.13))"
-    dy2 = f"(H*0.15+7*sin({clock}*0.17))"
-    diamond2 = f"lt(abs(abs(X-{dx2})+abs(Y-{dy2})-14),0.8)"
-    lines = f"({circle}+{diamond}+{diamond2})"
-    particles = []
-    for i in range(7):
-        px = f"(W*{(i*37+43)%100/100:.2f}+8*sin({clock}*{.08+i*.011:.3f}+{i}))"
-        py = f"(H*{(i*23+19)%100/100:.2f}+9*cos({clock}*{.10+i*.009:.3f}+{i*2}))"
-        particles.append(f"max(0,1-((X-{px})*(X-{px})+(Y-{py})*(Y-{py}))/12)")
-    dots = "(" + "+".join(particles) + ")"
-    glow = f"(0.5+0.5*sin(X/W*5+Y/H*3+{clock}*0.2))"
-    # geq integer conversion can wrap channel values above255. Clamp every
-    # gradient channel and give original outlines neutral-white priority.
-    red = f"if(gt({lines},0),240,clip(7+8*{glow}+95*{dots},0,255))"
-    green = f"if(gt({lines},0),240,clip(1+10*{glow}+100*{dots},0,255))"
-    blue = f"if(gt({lines},0),240,clip(118+75*{glow}+62*{dots},0,255))"
+    colors = [[int(color[i:i+2], 16) for i in (1, 3, 5)] for color in background["palette"]]
+    gradient = f"(0.25+0.55*X/W+0.15*Y/H+0.025*sin({clock}*0.08))"
+    grain = f"(0.55*sin(X*19+Y*37)*cos(X*13-Y*17+{clock}*0.04))"
+    vignette = "(1-0.18*((X/W-0.5)*(X/W-0.5)+(Y/H-0.5)*(Y/H-0.5)))"
+    factor = 1-background["darkness"]
+    channels = [f"clip(({start}+({end-start})*{gradient}+{grain})*{vignette}*{factor:.9f},0,255)"
+                for start, end in zip(*colors)]
     return (f"nullsrc=s={bg_width}x{bg_height}:r={fps}:d={duration:.9f},format=gbrp,"
-            f"geq=r='{red}':g='{green}':b='{blue}'")
+            f"geq=r='{channels[0]}':g='{channels[1]}':b='{channels[2]}'")
+
+
+def image_background_filter(background: dict[str, Any], canvas: dict[str, Any],
+                            beat: dict[str, Any], total_frames: int) -> str:
+    """Cover the canvas with a dimmed image and keep its zoom continuous across cuts."""
+    width, height = canvas["width"], canvas["height"]
+    start, end = background["zoom_from"], background["zoom_to"]
+    frame_offset = round(beat["start"] * float(Fraction(canvas["fps"])))
+    progress = f"(on+{frame_offset})/{max(1,total_frames-1)}"
+    zoom = f"{start:.9f}+({end-start:.9f})*{progress}"
+    return (f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={width}:{height},setsar=1,"
+            f"zoompan=z='{zoom}':x='iw/2-iw/(2*zoom)':y='ih/2-ih/(2*zoom)':"
+            f"d={beat['frames']}:s={width}x{height}:fps={canvas['fps']},"
+            f"eq=brightness=-{background['darkness']:.9f}:saturation=0.85,"
+            "vignette=PI/5:mode=forward,format=rgba,setsar=1,setpts=PTS-STARTPTS")
 
 
 def panel_filter(beat: dict[str, Any], canvas: dict[str, Any]) -> str:
@@ -445,6 +501,8 @@ def render(plan_path: Path, output: Path, workdir: Path, preview: tuple[int, int
     plan = validate_plan(plan_path, tools, timeout, preview)
     output, workdir = output.resolve(), workdir.resolve()
     source_paths = {Path(plan["audio"]["file"]), Path(plan["plan"])} | {Path(b["image"]) for b in plan["beats"]}
+    if plan["background"]["mode"] == "image":
+        source_paths.add(Path(plan["background"]["file"]))
     if output in source_paths or output.exists():
         raise RenderError("Output must be a new path and must not overwrite a source")
     if output.suffix.lower() != ".mp4":
@@ -467,7 +525,8 @@ def render(plan_path: Path, output: Path, workdir: Path, preview: tuple[int, int
             canvas = plan["canvas"]
             for index, beat in enumerate(plan["beats"]):
                 segment = cache / f"segment-{index+1:05d}.mp4"
-                segment_identity = {"beat": beat, "canvas": canvas, "renderer_version": VERSION,
+                segment_identity = {"beat": beat, "canvas": canvas, "background": plan["background"],
+                                    "background_timeline_frames": plan["frames"], "renderer_version": VERSION,
                                     "ffmpeg_version": version, "threads": threads,
                                     "encoder": identity["encoder"]}
                 segment_key = hashlib.sha256(json.dumps(segment_identity, sort_keys=True).encode()).hexdigest()
@@ -483,12 +542,20 @@ def render(plan_path: Path, output: Path, workdir: Path, preview: tuple[int, int
                     reused = True
                 if not reused:
                     duration = beat["end"]-beat["start"]
-                    bg = background_filter(canvas["width"], canvas["height"], canvas["fps"], duration+.1, beat["start"])
-                    graph = (f"[0:v]scale={canvas['width']}:{canvas['height']}:flags=bilinear,setsar=1[bg];"
+                    background = plan["background"]
+                    if background["mode"] == "image":
+                        inputs = ["-i", background["file"], "-i", beat["image"]]
+                        bg_filter = image_background_filter(background, canvas, beat, plan["frames"])
+                    else:
+                        bg = background_filter(canvas["width"], canvas["height"], canvas["fps"], duration+.1,
+                                               beat["start"], background)
+                        inputs = ["-f", "lavfi", "-i", bg, "-i", beat["image"]]
+                        bg_filter = f"scale={canvas['width']}:{canvas['height']}:flags=bilinear,setsar=1"
+                    graph = (f"[0:v]{bg_filter}[bg];"
                              f"[1:v]{panel_filter(beat,canvas)}[panel];"
                              "[bg][panel]overlay=x=0:y=0:format=auto:shortest=1,format=yuv420p[v]")
                     command = [tools["ffmpeg"], "-hide_banner", "-nostdin", "-y", "-threads", str(threads),
-                               "-filter_complex_threads", "1", "-f", "lavfi", "-i", bg, "-i", beat["image"],
+                               "-filter_complex_threads", "1"] + inputs + [
                                "-filter_complex", graph, "-map", "[v]", "-an", "-frames:v", str(beat["frames"]),
                                "-r", canvas["fps"], "-c:v", "libx264", "-preset", "veryfast", "-crf", "18",
                                "-pix_fmt", "yuv420p", "-threads", str(threads), str(segment)]
@@ -539,6 +606,8 @@ def render(plan_path: Path, output: Path, workdir: Path, preview: tuple[int, int
             expected_assets = {Path(plan['plan']): plan['plan_sha256'],
                                Path(plan['audio']['file']): plan['audio']['sha256']}
             expected_assets.update({Path(b['image']): b['image_sha256'] for b in plan['beats']})
+            if plan["background"]["mode"] == "image":
+                expected_assets[Path(plan["background"]["file"])] = plan["background"]["sha256"]
             for asset, expected_hash in expected_assets.items():
                 if file_hash(asset) != expected_hash:
                     raise RenderError(f"Source changed during render: {asset}")

@@ -4,12 +4,14 @@ import importlib.util
 import json
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 import wave
+import zlib
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/build_timeline.py"
 SPEC = importlib.util.spec_from_file_location("build_timeline", SCRIPT)
@@ -70,6 +72,9 @@ class TimelineTests(unittest.TestCase):
         self.analysis_path = self.root / "editing-analysis.json"
         if "production_structure" in self.script:
             self.analysis["production_structure"] = copy.deepcopy(self.script["production_structure"])
+        for key in ("visual_identity", "story_coverage"):
+            if key in self.script:
+                self.analysis[key] = copy.deepcopy(self.script[key])
         for shot, beat in zip(self.analysis["shots"], self.script["beats"]):
             if "section_id" in beat:
                 shot["section_id"] = beat["section_id"]
@@ -522,6 +527,243 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(plan["beats"][0]["color_mode"], "original")
         self.assertEqual(plan["beats"][0]["motion"]["to_scale"], 1.2)
         self.assertEqual(plan["beats"][0]["focal_point"], [.25, .5])
+
+    def visual_script(self, *, file=None):
+        self.script["visual_identity"] = {
+            "work_title": "Gotham: identidade editorial", "genre": "noir psicológico",
+            "palette": ["#161A22", "#D4B782"], "background": {
+                "mode": "image", "file": file or self.image.name,
+                "sha256": MODULE.sha256(self.image), "darkness": .2,
+                "zoom_from": 1, "zoom_to": 1.04}}
+
+    def test_original_art_default_and_explicit_cyan_override(self):
+        self.script["beats"][1]["color_mode"] = "manga_cyan"
+        plan = self.build()
+        self.assertEqual(plan["profile"], "comic-identity-longform-v1")
+        self.assertEqual(plan["beats"][0]["color_mode"], "original")
+        self.assertEqual(plan["beats"][1]["color_mode"], "manga_cyan")
+        self.assertNotIn("visual_identity", plan)
+
+    def test_legacy_identity_asset_resolves_against_script_directory_not_manifest(self):
+        scripts = self.root / "editorial"
+        scripts.mkdir()
+        self.script_path = scripts / "script.json"
+        self.visual_script(file="../page 1.png")
+        original = copy.deepcopy(self.script)
+        plan = self.build()
+        identity = plan["visual_identity"]
+        self.assertEqual((self.out.parent/identity["background"]["file"]).resolve(), self.image.resolve())
+        self.assertEqual(identity["background"]["sha256"], MODULE.sha256(self.image))
+        self.assertEqual(identity["genre"], "noir psicológico")
+        self.assertEqual(self.script, original)
+        self.assertEqual(json.loads(self.script_path.read_text(encoding="utf-8")), original)
+
+    def test_analysis_identity_asset_and_root_remain_portable_after_folder_move(self):
+        self.visual_script()
+        self.analysis_inputs(root_hint="../images")
+        self.analysis["visual_identity_root"] = "../images"
+        self.save_analysis()
+        handoff, images = self.root/"handoff", self.root/"images"
+        handoff.mkdir()
+        images.mkdir()
+        self.image.rename(images/self.image.name)
+        self.analysis_path.rename(handoff/self.analysis_path.name)
+        moved = self.root/"moved-project"
+        moved.mkdir()
+        shutil.move(str(handoff), str(moved/handoff.name))
+        shutil.move(str(images), str(moved/images.name))
+        self.analysis_path = moved/"handoff/editing-analysis.json"
+        original = self.analysis_path.read_bytes()
+        plan = self.build_analysis()
+        actual = (self.out.parent/plan["visual_identity"]["background"]["file"]).resolve()
+        self.assertEqual(actual, (moved/"images"/self.image.name).resolve())
+        self.assertEqual(plan["sources"]["script_semantic_sha256"], MODULE.semantic_sha256(self.script))
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+
+    def test_analysis_null_identity_root_requires_explicit_relocation(self):
+        self.visual_script()
+        self.analysis_inputs()
+        self.analysis["visual_identity_root"] = None
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "--visual-identity-root"):
+            self.build_analysis()
+        relocated = self.root/"new assets"
+        relocated.mkdir()
+        shutil.copyfile(self.image, relocated/self.image.name)
+        plan = self.build_analysis(visual_identity_root=relocated)
+        self.assertEqual((self.out.parent/plan["visual_identity"]["background"]["file"]).resolve(),
+                         (relocated/self.image.name).resolve())
+
+    def test_missing_identity_root_field_resolves_next_to_legacy_analysis(self):
+        self.visual_script()
+        self.analysis_inputs()
+        plan = self.build_analysis()
+        self.assertEqual((self.out.parent/plan["visual_identity"]["background"]["file"]).resolve(),
+                         self.image.resolve())
+
+    def test_absolute_identity_asset_does_not_require_root_guess(self):
+        self.visual_script(file=str(self.image.resolve()))
+        self.analysis_inputs()
+        self.analysis["visual_identity_root"] = None
+        self.save_analysis()
+        self.assertTrue(self.build_analysis()["renderable"])
+
+    def test_background_override_cli_records_provenance_without_mutating_source(self):
+        self.visual_script(file="missing-original.png")
+        self.analysis_inputs()
+        self.analysis["visual_identity_root"] = None
+        self.save_analysis()
+        original = self.analysis_path.read_bytes()
+        result = subprocess.run([sys.executable, str(SCRIPT), "--analysis", str(self.analysis_path),
+                                 "--audio", str(self.audio), "--alignment", str(self.align_path),
+                                 "--background-image", str(self.image), "--output", str(self.out)],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(self.out.read_text(encoding="utf-8"))
+        self.assertTrue(plan["renderable"])
+        self.assertEqual(plan["sources"]["background_override"]["sha256"], MODULE.sha256(self.image))
+        self.assertEqual(plan["sources"]["effective_visual_identity_sha256"],
+                         MODULE.semantic_sha256(plan["visual_identity"]))
+        self.assertEqual(plan["sources"]["script_semantic_sha256"], MODULE.semantic_sha256(self.script))
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+        self.assertEqual(plan["visual_identity"]["work_title"], self.script["visual_identity"]["work_title"])
+
+    def replacement_background(self):
+        def chunk(name, data):
+            return struct.pack(">I", len(data)) + name + data + struct.pack(">I", zlib.crc32(name+data))
+        asset = self.root/"new background.png"
+        data = b"\x89PNG\r\n\x1a\n"
+        data += chunk(b"IHDR", struct.pack(">IIBBBBB", 2, 2, 8, 2, 0, 0, 0))
+        data += chunk(b"IDAT", zlib.compress((b"\0"+b"\x18\x20\x28"*2)*2))
+        data += chunk(b"IEND", b"")
+        asset.write_bytes(data)
+        return asset
+
+    def test_background_override_keeps_reviewed_image_controls_and_replaces_checksum(self):
+        replacement = self.replacement_background()
+        self.visual_script()
+        self.script["visual_identity"]["background"].update(darkness=.05, zoom_from=1, zoom_to=1.02)
+        self.analysis_inputs()
+        original = self.analysis_path.read_bytes()
+        plan = self.build_analysis(background_image=replacement)
+        background = plan["visual_identity"]["background"]
+        self.assertEqual(background["darkness"], .05)
+        self.assertEqual(background["zoom_from"], 1)
+        self.assertEqual(background["zoom_to"], 1.02)
+        self.assertEqual((self.out.parent/background["file"]).resolve(), replacement.resolve())
+        self.assertEqual(background["sha256"], MODULE.sha256(replacement))
+        self.assertNotEqual(background["sha256"], MODULE.sha256(self.image))
+        self.assertEqual(plan["sources"]["background_override"]["sha256"], background["sha256"])
+        self.assertEqual(plan["sources"]["script_semantic_sha256"], MODULE.semantic_sha256(self.script))
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+
+    def test_ambient_override_keeps_shared_darkness_and_external_identity_metadata(self):
+        replacement = self.replacement_background()
+        self.script["visual_identity"] = {"genre": "noir", "palette": ["#161A22", "#D4B782"],
+                                         "background": {"mode": "ambient", "darkness": .05,
+                                                        "palette": ["#161A22", "#242A34"]}}
+        self.analysis_inputs()
+        original = self.analysis_path.read_bytes()
+        plan = self.build_analysis(background_image=replacement)
+        identity = plan["visual_identity"]
+        self.assertEqual(identity["background"]["darkness"], .05)
+        self.assertEqual(identity["palette"], self.script["visual_identity"]["palette"])
+        self.assertEqual(identity["genre"], "noir")
+        self.assertNotIn("palette", identity["background"])
+        self.assertNotIn("zoom_from", identity["background"])
+        self.assertNotIn("zoom_to", identity["background"])
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+        # With no prior image controls, the renderer's image defaults apply.
+        self.script.pop("visual_identity")
+        self.out = self.root/"plans/default-background.json"
+        defaults = self.build(background_image=replacement)["visual_identity"]["background"]
+        self.assertEqual(set(defaults), {"mode", "file", "sha256"})
+
+    def test_background_override_cannot_hide_invalid_original_image_controls(self):
+        replacement = self.replacement_background()
+        for key, value in (("darkness", .9), ("zoom_to", 2), ("sha256", "invalid")):
+            with self.subTest(key=key):
+                self.visual_script()
+                self.script["visual_identity"]["background"][key] = value
+                with self.assertRaisesRegex(MODULE.TimelineError, key):
+                    self.build(background_image=replacement)
+
+    def test_changed_identity_checksum_and_missing_background_rejected(self):
+        self.visual_script()
+        self.script["visual_identity"]["background"]["sha256"] = "0"*64
+        with self.assertRaisesRegex(MODULE.TimelineError, "checksum diferente"):
+            self.build()
+        self.script["visual_identity"]["background"].update(file="missing.png", sha256=MODULE.sha256(self.image))
+        with self.assertRaisesRegex(MODULE.TimelineError, "Fundo de identidade inexistente"):
+            self.build()
+
+    def test_identity_background_output_collision_and_unsupported_format_rejected(self):
+        asset = self.root/"future.json"
+        asset.write_bytes(self.image.read_bytes())
+        self.visual_script(file=asset.name)
+        with self.assertRaisesRegex(MODULE.TimelineError, "formato suportado"):
+            self.build()
+        self.visual_script()
+        self.out = self.image
+        with self.assertRaisesRegex(MODULE.TimelineError, "coincide com uma fonte"):
+            self.build()
+
+    def test_identity_metadata_mismatch_and_invalid_controls_rejected(self):
+        self.visual_script()
+        self.analysis_inputs()
+        self.analysis["visual_identity"]["genre"] = "Outra obra"
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "visual_identity da análise"):
+            self.build_analysis()
+        for value in (None, [], {"background": None}, {"background": {}},
+                      {"background": {"mode": "blue-shapes"}},
+                      {"background": {"mode": "image", "file": ""}},
+                      {"background": {"mode": "image", "file": self.image.name, "sha256": "invalid"}},
+                      {"background": {"mode": "image", "file": self.image.name, "zoom_to": 2}},
+                      {"background": {"mode": "ambient", "darkness": float("nan")}},
+                      {"background": {"mode": "ambient", "palette": ["#fff", "#000"]}}):
+            with self.subTest(value=value):
+                self.script["visual_identity"] = value
+                with self.assertRaises(MODULE.TimelineError):
+                    self.build()
+
+    def test_ambient_identity_preserves_work_palette_and_editorial_metadata(self):
+        self.script["visual_identity"] = {"genre": "aventura", "reference_panels": ["P001/Q01"],
+                                         "background": {"mode": "ambient", "palette": ["#161A22", "#D4B782"],
+                                                        "darkness": .1}}
+        plan = self.build()
+        self.assertEqual(plan["visual_identity"], self.script["visual_identity"])
+        plan["visual_identity"]["reference_panels"].append("P002/Q01")
+        self.assertEqual(self.script["visual_identity"]["reference_panels"], ["P001/Q01"])
+
+    def test_planning_duration_and_complete_story_metadata_never_replace_real_audio(self):
+        self.script["story_coverage"] = {"scope": "complete", "reviewed": True, "included_pages": ["P001"]}
+        self.analysis_inputs()
+        estimate = {"kind": "planning-estimate", "timestamps_confirmed": False,
+                    "target_minutes": [10, 30], "estimated_narration_seconds": 1200,
+                    "word_count": 2960, "assumed_words_per_minute": 148}
+        self.analysis["duration_estimate"] = estimate
+        self.save_analysis()
+        plan = self.build_analysis()
+        self.assertEqual(plan["duration_estimate"], estimate)
+        self.assertEqual(plan["story_coverage"], self.script["story_coverage"])
+        self.assertEqual(plan["total_frames"], 72)
+        self.assertLess(plan["duration_seconds"], 2.41)
+        self.assertEqual(plan["alignment"]["method"], "manual")
+        self.assertTrue(any("áudio real" in line for line in plan["limitations"]))
+
+    def test_planning_metadata_mismatch_or_timestamp_claim_rejected(self):
+        self.script["story_coverage"] = {"scope": "complete", "included_pages": ["P001"]}
+        self.analysis_inputs()
+        self.analysis["story_coverage"]["included_pages"] = []
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "story_coverage"):
+            self.build_analysis()
+        self.analysis["story_coverage"] = copy.deepcopy(self.script["story_coverage"])
+        self.analysis["duration_estimate"] = {"kind": "planning-estimate", "timestamps_confirmed": True}
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "timestamps_confirmed=false"):
+            self.build_analysis()
 
 
 if __name__ == "__main__":
