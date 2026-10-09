@@ -69,6 +69,8 @@ Limites são quantizados em frames contínuos, total=ceil(duração_áudio×fps)
 
 Trecho ilustrativo, não timeline completa: beats reais precisam cobrir todo áudio. Builder acrescenta frames, duração, hashes, precisão declarada e origem. Os paths do plano são relativos ao **diretório do plano**, podendo usar `../` para referenciar mídia do projeto. Não resolva a imagem pelo cwd do terminal.
 
+Quando presentes, `production_structure` e `section_id` são preservados no plano para o agente compor gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. Esses metadados não alteram tempos ou imagens e não inserem módulos silenciosos automaticamente. A composição completa e seu mix estão em [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
+
 `from_scale/to_scale` variam1–2.5 sobre fit com margem; default alterna1→1.8 e1.8→1. `focal_point` é relativo ao recorte. `color_mode` aceita manga_cyan ou original. Fade ocorre dentro de cada beat, sem sobreposição de duração entre beats. O renderer implementa zoom linear e ornamentos originais; não recupera easing/keyframes do projeto de referência. Imagens de edição: PNG/JPG/JPEG/WebP/BMP/TIF/TIFF; GIF inventariado na leitura precisa ser convertido para imagem estática conferida.
 
 ## Validar, renderizar e retomar

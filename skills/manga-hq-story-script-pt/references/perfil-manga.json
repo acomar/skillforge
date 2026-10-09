@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "profile_id": "manga-blue-longform-v1",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "language": "pt-BR",
   "corpus": [
     {
@@ -164,9 +164,25 @@
     "short_opening_seconds": [
       1,
       5
-    ]
+    ],
+    "structure_mode": "complete-no-advertising",
+    "advertising": false,
+    "sections": [
+      "hook",
+      "intro",
+      "context",
+      "recap",
+      "analysis",
+      "reveal",
+      "cta",
+      "outro"
+    ],
+    "intro_identity": "project-brand-or-original-neutral-episode-title",
+    "opening_color_mode": "original",
+    "outro": "faster montage with project assets",
+    "music_and_effects": "project-provided or original layers; document provenance and actual use"
   },
-  "implementation_boundary": "Helpers support evidence mapping, reviewed beat alignment and original blue/cyan body rendering. Opening/sting/music/effects/CTA need project-specific editing. Defaults are adaptation, not recovered project values.",
+  "implementation_boundary": "The default skill workflow produces the complete no-advertising pattern. Helpers preserve production structure and support evidence mapping, reviewed beat alignment and blue/cyan or original-color narrated panels. Silent intro/sting, titles, music, effects and final montage require the agent to execute additional project-specific composition. Metadata alone does not render these modules. Defaults are adaptations, not recovered project values.",
   "limitations": [
     "Shot detector .3 misses blue body fades: candidates are not shots",
     "ASR names/counts/punctuation may be wrong; counts include ads and CTA",

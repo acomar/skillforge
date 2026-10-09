@@ -1,4 +1,4 @@
 interface:
   display_name: "Roteiro de HQ e mangá"
-  short_description: "Roteiro e análise de imagens para edição do vídeo"
-  default_prompt: "Use $manga-hq-story-script-pt para examinar minha pasta de HQ e criar narração e análise que localize cada imagem e painel para a edição."
+  short_description: "Roteiro completo sem anúncios e mapa de imagens"
+  default_prompt: "Use $manga-hq-story-script-pt para examinar minha pasta de HQ e criar roteiro completo sem anúncios, com gancho, intro, história, análise, CTA e encerramento. Gere a análise que localize imagens e painéis e preserve o plano dos módulos para edição."

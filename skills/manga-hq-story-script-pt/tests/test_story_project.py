@@ -241,6 +241,107 @@ class StoryProjectTests(unittest.TestCase):
         self.assertEqual(story.editing_analysis(self.manifest, self.script, Path("unused"))["shots"][0]["description"],
                          beat["description"])
 
+    def production_script(self):
+        self.script["beats"][0]["section_id"] = "gancho"
+        cta = copy.deepcopy(self.script["beats"][0])
+        cta.update(id="B02", section_id="encerramento", purpose="CTA",
+                   narration="Comente qual pista chamou mais a sua atenção.")
+        self.script["beats"].append(cta)
+        self.script["production_structure"] = {
+            "advertisements": False, "pacing_note": "Preservar a energia das referências.",
+            "sections": [
+                {"id": "gancho", "kind": "hook", "goal": "Abrir a pergunta central.", "beats": ["B01"]},
+                {"id": "vinheta", "kind": "intro", "goal": "Identidade original do canal.",
+                 "beats": [], "narrated": False, "estimated_duration_seconds": 3,
+                 "editorial_notes": "Vinheta silenciosa com sting; não ler esta orientação."},
+                {"id": "contexto", "kind": "context", "goal": "Situar a leitura.", "beats": []},
+                {"id": "recap", "kind": "recap", "beats": []},
+                {"id": "comentario", "kind": "analysis", "beats": []},
+                {"id": "revelacao", "kind": "reveal", "beats": []},
+                {"id": "encerramento", "kind": "cta", "goal": "Convidar comentário.", "beats": ["B02"]},
+                {"id": "outro", "kind": "outro", "beats": [], "narrated": False}]}
+
+    def test_full_production_handoff_includes_silent_intro_and_clean_narration(self):
+        self.production_script()
+        original = copy.deepcopy(self.script)
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            output = story.build(self.manifest, self.script, directory)
+            analysis = story.load_json(output.parent / "editing-analysis.json")
+            self.assertEqual(analysis["production_structure"], original["production_structure"])
+            self.assertEqual([shot["section_id"] for shot in analysis["shots"]], ["gancho", "encerramento"])
+            self.assertEqual([shot["beat_id"] for shot in analysis["shots"]], ["B01", "B02"])
+            self.assertTrue(all("start" not in shot and "end" not in shot for shot in analysis["shots"]))
+            self.assertEqual(output.read_text(encoding="utf-8"),
+                             "\n\n".join(beat["narration"] for beat in original["beats"]) + "\n")
+            self.assertNotIn("sting", output.read_text(encoding="utf-8"))
+            markdown = (output.parent / "editing-analysis.md").read_text(encoding="utf-8")
+            self.assertIn("vinheta — intro", markdown)
+            self.assertIn("nenhum; elemento de produção sem beat narrado", markdown)
+            self.assertIn("estimated_duration_seconds", markdown)
+            self.assertIn("não confirma que esses módulos foram renderizados", markdown)
+            self.assertIn("pacing_note", markdown)
+            analysis["production_structure"]["sections"][0]["goal"] = "Alterado."
+            self.assertEqual(self.script, original)
+
+    def test_optional_section_metadata_does_not_require_narration_or_reorder_beats(self):
+        self.production_script()
+        self.script["production_structure"]["sections"].reverse()
+        self.script["production_structure"]["sections"][-1].pop("beats")
+        self.assertEqual(story.validate(self.manifest, self.script), [])
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertEqual([shot["beat_id"] for shot in analysis["shots"]], ["B01", "B02"])
+        self.assertIn("`B01`", story.analysis_markdown(analysis))
+        legacy = copy.deepcopy(self.script)
+        legacy.pop("production_structure")
+        for beat in legacy["beats"]:
+            beat.pop("section_id")
+        old_analysis = story.editing_analysis(self.manifest, legacy, Path("unused"))
+        self.assertNotIn("production_structure", old_analysis)
+        self.assertTrue(all("section_id" not in shot for shot in old_analysis["shots"]))
+
+    def test_malformed_sections_and_unknown_section_links_are_rejected(self):
+        self.production_script()
+        original = copy.deepcopy(self.script)
+        values = [None, [], {}, {"sections": None}, {"sections": [None]},
+                  {"sections": [{"id": "gancho", "kind": ""}]},
+                  {"sections": [{"id": "gancho", "kind": "hook"}, {"id": "gancho", "kind": "intro"}]},
+                  {"sections": [{"id": "gancho", "kind": "hook", "beats": ["missing"]}]},
+                  {"sections": [{"id": "gancho", "kind": "hook", "goal": []}]},
+                  {"sections": [{"id": "gancho", "kind": "hook", "beats": "B01"}]}]
+        for value in values:
+            with self.subTest(value=value):
+                script = copy.deepcopy(original)
+                script["production_structure"] = value
+                self.assertTrue(story.validate(self.manifest, script))
+                with self.assertRaises(story.ProjectError):
+                    story.editing_analysis(self.manifest, script, Path("unused"))
+        script = copy.deepcopy(original)
+        script["beats"][0]["section_id"] = "missing"
+        self.assertTrue(any("section_id" in error for error in story.validate(self.manifest, script)))
+        script.pop("production_structure")
+        self.assertTrue(any("section_id exige" in error for error in story.validate(self.manifest, script)))
+
+    def test_conflicting_section_memberships_are_rejected(self):
+        self.production_script()
+        original = copy.deepcopy(self.script)
+        for refs in [["B01", "B01"], ["B02"], []]:
+            with self.subTest(refs=refs):
+                script = copy.deepcopy(original)
+                script["production_structure"]["sections"][0]["beats"] = refs
+                self.assertTrue(story.validate(self.manifest, script))
+        script = copy.deepcopy(original)
+        script["production_structure"]["sections"][1]["beats"] = ["B01"]
+        self.assertTrue(any("mais de uma" in error for error in story.validate(self.manifest, script)))
+
+    def test_production_sections_reject_ads_and_allow_narrated_channel_cta(self):
+        self.production_script()
+        self.assertEqual(story.validate(self.manifest, self.script), [])
+        for kind in ("advertisement", "ad", "sponsor", "sponsorship", "commercial", "promotion", " AD "):
+            with self.subTest(kind=kind):
+                script = copy.deepcopy(self.script)
+                script["production_structure"]["sections"][1]["kind"] = kind
+                self.assertTrue(any("publicidade" in error for error in story.validate(self.manifest, script)))
+
     def test_divergent_aggregate_narration_and_reading_direction(self):
         self.script["narration"] = "Texto que não é o dos beats."
         self.script["reading_direction"] = "right-to-left"

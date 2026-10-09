@@ -29,7 +29,7 @@ Trilha fornecida pode ficar discreta sob a voz, com redução quando prejudicar 
 1. Validador aceita materiais e cobertura; decode completo não apresenta erros.
 2. Resolução/fps/duração final conferidos; diferença vídeo-áudio ≤um frame de vídeo, com tolerância de packet/padding do codec explicitada.
 3. Fluxo visual acompanha sujeito/ação/tempo da narração; abertura paga promessa e fecho tem resultado.
-4. Não há página de anúncio acidental, corte que destrói rosto/gesto, nem fade que deixa tela preta inexplicada.
+4. Gancho, intro/vinheta, contexto, história, análise/revelações, CTA e montagem final foram compostos e revistos. Não há propaganda/patrocínio, página de anúncio acidental, corte que destrói rosto/gesto, nem fade que deixa tela preta inexplicada. Seções declaradas só nos metadados ainda não contam como executadas.
 5. Loudness e pico medidos no arquivo final; voz entendível e nenhuma outra faixa de idioma somada por acidente.
 6. Informe duração renderizada, resolução da prévia, trechos revisados e diferenças do perfil.
 

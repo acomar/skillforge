@@ -1,15 +1,15 @@
 ---
 name: manga-hq-story-script-pt
-description: Escreve narração em português no estilo de recap de mangá azul a partir de páginas de HQ ou mangá e gera análise com imagens, painéis e recortes ligados ao roteiro para facilitar a edição. Use para transformar quadrinhos fornecidos em roteiro narrável e mapa de montagem; renderização pertence à skill de edição.
+description: Cria roteiro completo de recap de HQ ou mangá em português, sem anúncios, com gancho, intro, história, análise, CTA e encerramento, e exporta o mapa de imagens/painéis para edição. Use para transformar páginas fornecidas em narração e plano de produção; renderização pertence à skill de edição.
 metadata:
   category: content
   status: experimental
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Roteiro de HQ e mangá no padrão azul
 
-Transforme páginas locais em uma narração original, envolvente e verificável, pronta para gravação e montagem. O perfil deriva de quatro vídeos longos: gancho imediato, relato causal em terceira pessoa, comentário emocional, tensão e revelação e pergunta final. Leia [references/padrao-manga.md](references/padrao-manga.md) para aplicá-lo; comprima a estrutura quando o usuário pedir um vídeo curto.
+Transforme páginas locais em roteiro e plano de um vídeo completo no padrão analisado, sem publicidade. A estrutura padrão reúne gancho, intro/vinheta, contexto, recap causal, comentários e análise, revelações, chamada para interação e montagem de encerramento. Leia [references/padrao-manga.md](references/padrao-manga.md) para as evidências e [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md) para produzir todos os módulos. Comprima os módulos para vídeos curtos mantendo suas funções.
 
 ## Entradas e leitura
 
@@ -23,10 +23,10 @@ Transforme páginas locais em uma narração original, envolvente e verificável
 ## Construção do roteiro
 
 1. Identifique desejo, obstáculo, decisões, consequências e resultado disponível. Faça um mapa curto de evidências antes de narrar; veja [references/leitura-e-roteiro.md](references/leitura-e-roteiro.md).
-2. Abra com a consequência ou contradição mais forte apoiada na fonte. Prometa sua explicação e entregue o contexto necessário logo depois. Um gancho pode antecipar resultado, mas preserva sua causa.
+2. Abra com a consequência ou contradição mais forte apoiada na fonte. Prometa sua explicação, planeje a intro/vinheta do projeto e entregue o contexto logo depois. Um gancho pode antecipar resultado, mas preserva sua causa. Não intercale patrocínio, oferta comercial ou indicação de produto.
 3. Narre ação→reação→consequência com frases claras e conectores de progressão. Perguntas e comentários unem os fatos, com intensidade proporcional à cena. Troque imagem quando mudar o foco da fala.
 4. Preserve ironias, pistas e retornos relevantes. Sinalize mudança de tempo nas memórias. Distinga fato mostrado, declaração de personagem e interpretação: acusação não vira condenação; intenção não vira viagem realizada.
-5. Termine pagando o gancho e mostrando o que mudou. Use uma pergunta ligada ao dilema ou próximo acontecimento disponível. Não invente um próximo capítulo para sustentar suspense.
+5. Termine pagando o gancho e mostrando o que mudou. Inclua comentário/análise fundamentada, pergunta ligada ao dilema e CTA breve de comentar, seguir ou assistir a outro conteúdo pertinente. Planeje a montagem visual de encerramento. Teorias ficam marcadas como hipóteses; não invente um próximo capítulo para sustentar suspense.
 
 Parafraseie os balões em texto próprio, sem transcrição extensa da HQ. Use a energia e a construção do perfil sem copiar frases, marca ou voz de um narrador específico. O recap pode ter spoilers, salvo pedido contrário.
 
@@ -36,7 +36,7 @@ Entregue `narration.txt` com **apenas o texto que deve ser falado**, sem tempos,
 
 Gere obrigatoriamente **`editing-analysis.json` e `editing-analysis.md`**: a análise que a edição usa para encontrar as imagens. Ela deve reunir catálogo pesquisável de páginas/painéis, descrições visuais e o mapa trecho narrado→arquivo→painel→recorte, com motivos de escolha e material excluído. Leia [references/analise-para-edicao.md](references/analise-para-edicao.md). O JSON inclui roteiro e manifesto para ser usado diretamente pelo editor; o Markdown facilita conferência e busca humana.
 
-Em `editorial_notes` de cada beat, explique por que o painel sustenta a fala e qual detalhe deve permanecer visível; mantenha essas notas fora do texto narrado.
+Em `editorial_notes` de cada beat, explique por que o painel sustenta a fala e qual detalhe deve permanecer visível; mantenha essas notas fora do texto narrado. Registre `production_structure.sections` no roteiro e `section_id` nos beats para a edição reconhecer gancho, intro, corpo, análise, CTA e outro. Seções silenciosas, como uma vinheta, ficam no plano de produção sem criar fala ou evidência fictícia. A análise deve preservar essa estrutura junto do mapa de imagens.
 
 Use o helper para conferir integridade e gerar narração limpa:
 
@@ -56,6 +56,7 @@ Leia a narração em voz alta ou estime duração com a cadência do perfil, reg
 - O texto resolve a promessa inicial, evita repetição para preencher tempo e separa interpretação de fato.
 - Narração limpa corresponde à concatenação dos beats; a edição não precisa adivinhar os painéis.
 - A análise acompanha o roteiro atual: cada trecho tem arquivo, página, painel, descrição e caixa de recorte corretos, com pasta base resolvível. As imagens de apoio são identificadas como evidências, sem virar trocas automáticas de plano.
+- A estrutura completa está planejada, com gancho, intro, contexto, história, análise/revelações, CTA e outro identificados; não há segmento publicitário. Em shorts as funções podem compartilhar o mesmo trecho.
 - Declare cobertura efetiva da leitura, dúvidas restantes e duração estimada ou medida.
 
 Evidências de testes e maturidade em [references/origem-e-validacao.md](references/origem-e-validacao.md).

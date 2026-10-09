@@ -25,6 +25,13 @@ Atualização 0.2.0: o roteiro exporta `editing-analysis.json` e `editing-analys
 - Revisão independente dos helpers e do contrato não encontrou falha material na associação. Descrições, tags e notas continuam consultivas: a montagem segue a ordem de `script.beats` e não interpreta imagens automaticamente.
 - Estrutura individual e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
 
+Atualização 0.3.0: por preferência explícita do projeto, o padrão completo sem anúncios passa a ser a entrega padrão: gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. Os valores observados do corpus foram preservados; a versão 0.2.0 do perfil acrescenta decisões de aplicação.
+
+- Exportador: 27 testes aprovados; builder: 38 testes aprovados. A estrutura completa atravessa roteiro, análise e timeline, inclusive módulos silenciosos sem inventar fala/imagem/tempo.
+- Integração exportação→consumo com PNG, WAV e marcas confirmadas aprovada; seções comerciais explícitas são rejeitadas e CTA editorial permanece permitida. Arquivos antigos sem essa estrutura continuam aceitos.
+- Estrutura individual e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
+- Renderer do corpo não foi alterado. Gancho/intro/outro, trilha e efeitos são executados pelo agente na composição final; registrar seções não comprova que foram renderizadas. Não houve novo master narrado completo nesta atualização.
+
 Para repetir a partir da raiz do SkillForge:
 
 ```text

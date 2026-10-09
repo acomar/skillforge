@@ -23,6 +23,8 @@ import re
 import subprocess
 import sys
 
+AD_SECTION_KINDS = {"advertisement", "ad", "sponsor", "sponsorship", "commercial", "promotion"}
+
 
 class TimelineError(ValueError):
     """The media, evidence, review or synchronization contract is incomplete."""
@@ -45,6 +47,56 @@ def valid_id(value, label):
     if not isinstance(value, str) or not value.strip():
         raise TimelineError(f"{label}: ID não vazio obrigatório.")
     return value
+
+
+def checked_production_structure(script):
+    """Validate optional production metadata without creating timed segments."""
+    beats = script.get("beats", [])
+    beats = beats if isinstance(beats, list) else []
+    beat_map = {beat["id"]: beat for beat in beats
+                if isinstance(beat, dict) and isinstance(beat.get("id"), str)}
+    if "production_structure" not in script:
+        if any(isinstance(beat, dict) and "section_id" in beat for beat in beats):
+            raise TimelineError("section_id exige production_structure com sections.")
+        return
+    structure = script["production_structure"]
+    if not isinstance(structure, dict) or not isinstance(structure.get("sections"), list):
+        raise TimelineError("production_structure deve ser objeto com sections como lista.")
+    section_map, memberships = {}, {}
+    for section in structure["sections"]:
+        if not isinstance(section, dict):
+            raise TimelineError("production_structure: seção deve ser objeto.")
+        sid = valid_id(section.get("id"), "production_structure seção")
+        if sid in section_map:
+            raise TimelineError(f"production_structure: ID de seção duplicado: {sid}.")
+        section_map[sid] = section
+        kind = section.get("kind")
+        if not isinstance(kind, str) or not kind.strip():
+            raise TimelineError(f"{sid}: kind deve ser texto não vazio.")
+        if kind.strip().casefold() in AD_SECTION_KINDS:
+            raise TimelineError(f"{sid}: seção de publicidade não permitida nesta produção sem anúncios.")
+        if "goal" in section and not isinstance(section["goal"], str):
+            raise TimelineError(f"{sid}: goal deve ser texto.")
+        if "beats" in section:
+            refs = section["beats"]
+            if not isinstance(refs, list):
+                raise TimelineError(f"{sid}: beats deve ser lista de IDs.")
+            for bid in refs:
+                if not isinstance(bid, str) or bid not in beat_map:
+                    raise TimelineError(f"{sid}: beats referencia ID inexistente.")
+                if bid in memberships:
+                    raise TimelineError(f"{sid}: beat associado a mais de uma seção ou duplicado: {bid}.")
+                memberships[bid] = sid
+    for bid, beat in beat_map.items():
+        if "section_id" not in beat:
+            continue
+        sid = beat["section_id"]
+        if not isinstance(sid, str) or sid not in section_map:
+            raise TimelineError(f"{bid}: section_id deve referenciar uma seção existente.")
+        section = section_map[sid]
+        if ((bid in memberships and memberships[bid] != sid)
+                or (isinstance(section.get("beats"), list) and bid not in section["beats"])):
+            raise TimelineError(f"{bid}: section_id diverge dos beats declarados na seção.")
 
 
 def bbox(box, label):
@@ -146,6 +198,7 @@ def checked_evidence(manifest, script, image_root):
     beats = script.get("beats")
     if not isinstance(pages, list) or not pages or not isinstance(beats, list) or not beats:
         raise TimelineError("Manifesto deve conter pages e roteiro deve conter beats não vazios.")
+    checked_production_structure(script)
     page_map, panel_map = {}, {}
     for page in pages:
         if not isinstance(page, dict):
@@ -323,6 +376,8 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
                "image_sha256": item["image_sha256"], "page_id": beat["page_id"], "panel_id": beat["panel_id"],
                "bbox": item["bbox"], "motion": motion, "transition_seconds": transition,
                "color_mode": color, "legibility_reviewed": True}
+        if "section_id" in beat:
+            row["section_id"] = beat["section_id"]
         if "focal_point" in beat:
             focal = beat["focal_point"]
             if not isinstance(focal, list) or len(focal) != 2 or any(not 0 <= finite(v, "focal_point") <= 1 for v in focal):
@@ -338,6 +393,9 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
             "sources": sources,
             "beats": planned,
             "limitations": (["Tempos por peso de palavras são estimativas; revise contra o áudio e crie alignment confirmado antes de master."] if not ready else ["Revisão declarada das marcas/recortes não substitui conferir o preview, sincronismo perceptivo e conteúdo."])}
+    if "production_structure" in script:
+        plan["production_structure"] = copy.deepcopy(script["production_structure"])
+        plan["limitations"].append("production_structure preserva o plano de gancho/intro/desenvolvimento/encerramento; módulos sem beats exigem composição posterior e não foram renderizados por este helper.")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive creation preserves source data and previous deliverables.
     with output_path.open("x", encoding="utf-8") as handle:
@@ -379,6 +437,10 @@ def checked_analysis(analysis):
         if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected) or expected != actual:
             raise TimelineError(f"Análise desatualizada: fingerprint do {name} diverge do objeto embutido.")
         hashes[f"{name}_semantic_sha256"] = actual
+    checked_production_structure(script)
+    if ("production_structure" in script or "production_structure" in analysis):
+        if analysis.get("production_structure") != script.get("production_structure"):
+            raise TimelineError("production_structure da análise diverge do roteiro embutido.")
     pages, beats = manifest.get("pages"), script.get("beats")
     if not isinstance(pages, list) or not isinstance(beats, list) or not pages or not beats:
         raise TimelineError("Análise deve conter pages e beats não vazios.")
@@ -428,6 +490,8 @@ def checked_analysis(analysis):
             raise TimelineError(f"{bid}: referência de página/painel inexistente.")
         expected = {"page_id": pid, "panel_id": qid, "narration": beat.get("narration"),
                     "file": page_map[pid].get("file"), "bbox": bbox(panel_map[(pid, qid)].get("bbox"), bid)}
+        if "section_id" in beat or "section_id" in shot:
+            expected["section_id"] = beat.get("section_id")
         for field, value in expected.items():
             candidate = bbox(shot.get(field), bid) if field == "bbox" else shot.get(field)
             if candidate != value:

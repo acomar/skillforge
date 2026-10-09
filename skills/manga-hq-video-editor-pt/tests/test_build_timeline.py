@@ -68,6 +68,11 @@ class TimelineTests(unittest.TestCase):
                                     "file": self.image.name, "bbox": panels[beat["panel_id"]]["bbox"]}
                                    for beat in self.script["beats"]]}
         self.analysis_path = self.root / "editing-analysis.json"
+        if "production_structure" in self.script:
+            self.analysis["production_structure"] = copy.deepcopy(self.script["production_structure"])
+        for shot, beat in zip(self.analysis["shots"], self.script["beats"]):
+            if "section_id" in beat:
+                shot["section_id"] = beat["section_id"]
         self.save_analysis()
 
     def save_analysis(self):
@@ -254,6 +259,110 @@ class TimelineTests(unittest.TestCase):
                                  "--output", str(self.out)], capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(result.returncode, 2)
         self.assertIn("não combine", result.stderr)
+
+    def production_script(self):
+        self.script["production_structure"] = {
+            "advertisements": False, "sections": [
+                {"id": "gancho", "kind": "hook", "goal": "Abrir com uma pergunta.", "beats": ["B1"]},
+                {"id": "vinheta", "kind": "intro", "goal": "Vinheta do canal.", "beats": [],
+                 "narrated": False, "estimated_duration_seconds": 3},
+                {"id": "cta", "kind": "cta", "goal": "Convidar comentário.", "beats": ["B2"]},
+                {"id": "outro", "kind": "outro", "beats": [], "narrated": False}]}
+        self.script["beats"][0]["section_id"] = "gancho"
+        self.script["beats"][1]["section_id"] = "cta"
+
+    def test_analysis_structure_preserved_without_creating_module_timestamps_or_images(self):
+        self.production_script()
+        self.analysis_inputs()
+        original = self.analysis_path.read_bytes()
+        plan = self.build_analysis()
+        self.assertEqual(plan["production_structure"], self.script["production_structure"])
+        self.assertEqual([beat["section_id"] for beat in plan["beats"]], ["gancho", "cta"])
+        self.assertEqual([beat["id"] for beat in plan["beats"]], ["B1", "B2"])
+        self.assertEqual([beat["panel_id"] for beat in plan["beats"]], ["Q01", "Q02"])
+        self.assertEqual(plan["total_frames"], 72)
+        self.assertEqual(plan["beats"][0]["end_frame"], 30)
+        self.assertEqual(plan["beats"][1]["start_frame"], 30)
+        self.assertEqual(plan["beats"][1]["end_frame"], 72)
+        self.assertTrue(all("start" not in section and "end" not in section
+                            for section in plan["production_structure"]["sections"]))
+        self.assertTrue(any("composição posterior" in limitation for limitation in plan["limitations"]))
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+        plan["production_structure"]["sections"][1]["goal"] = "Mudou."
+        self.assertEqual(self.script["production_structure"]["sections"][1]["goal"], "Vinheta do canal.")
+
+    def test_legacy_path_optional_structure_and_old_projects_remain_compatible(self):
+        self.production_script()
+        plan = self.build()
+        self.assertEqual(plan["production_structure"], self.script["production_structure"])
+        self.assertEqual(plan["beats"][0]["section_id"], "gancho")
+        self.out = self.root / "plans/legacy.json"
+        self.script.pop("production_structure")
+        for beat in self.script["beats"]:
+            beat.pop("section_id")
+        legacy = self.build()
+        self.assertNotIn("production_structure", legacy)
+        self.assertTrue(all("section_id" not in beat for beat in legacy["beats"]))
+
+    def test_analysis_rejects_structure_or_section_link_divergence(self):
+        self.production_script()
+        self.analysis_inputs()
+        original = copy.deepcopy(self.analysis)
+        for edit in ("missing-structure", "changed-structure", "missing-section", "changed-section"):
+            with self.subTest(edit=edit):
+                self.analysis = copy.deepcopy(original)
+                if edit == "missing-structure":
+                    self.analysis.pop("production_structure")
+                elif edit == "changed-structure":
+                    self.analysis["production_structure"]["sections"][1]["goal"] = "Outra vinheta."
+                elif edit == "missing-section":
+                    self.analysis["shots"][0].pop("section_id")
+                else:
+                    self.analysis["shots"][0]["section_id"] = "cta"
+                self.save_analysis()
+                with self.assertRaisesRegex(MODULE.TimelineError, "production_structure|shot section_id"):
+                    self.build_analysis()
+
+    def test_bad_production_sections_and_conflicting_links_rejected_before_media_planning(self):
+        self.production_script()
+        original = copy.deepcopy(self.script)
+        for value in (None, [], {}, {"sections": [None]},
+                      {"sections": [{"id": "gancho", "kind": ""}]},
+                      {"sections": [{"id": "gancho", "kind": "hook", "beats": ["missing"]}]},
+                      {"sections": [{"id": "gancho", "kind": "hook", "beats": []}]}):
+            with self.subTest(value=value):
+                self.script = copy.deepcopy(original)
+                self.script["production_structure"] = value
+                with self.assertRaises(MODULE.TimelineError):
+                    self.build()
+        self.script = copy.deepcopy(original)
+        self.script["production_structure"]["sections"][1]["beats"] = ["B1"]
+        with self.assertRaisesRegex(MODULE.TimelineError, "mais de uma"):
+            self.build()
+        self.script = copy.deepcopy(original)
+        self.script["beats"][0]["section_id"] = "missing"
+        with self.assertRaisesRegex(MODULE.TimelineError, "section_id"):
+            self.build()
+        self.script.pop("production_structure")
+        with self.assertRaisesRegex(MODULE.TimelineError, "section_id exige"):
+            self.build()
+
+    def test_ad_sections_rejected_but_channel_cta_does_not_change_alignment_confirmation(self):
+        self.production_script()
+        original = copy.deepcopy(self.script)
+        for kind in ("ad", "advertisement", "sponsor", "sponsorship", "commercial", "promotion"):
+            with self.subTest(kind=kind):
+                self.script = copy.deepcopy(original)
+                self.script["production_structure"]["sections"][1]["kind"] = kind
+                with self.assertRaisesRegex(MODULE.TimelineError, "publicidade"):
+                    self.build()
+        self.script = original
+        self.alignment["confirmed"] = False
+        with self.assertRaisesRegex(MODULE.TimelineError, "não confirmado"):
+            self.build()
+        draft = self.build(draft=True)
+        self.assertFalse(draft["renderable"])
+        self.assertEqual(draft["production_structure"], self.script["production_structure"])
 
     def test_real_wav_frame_contiguous_plan_and_relative_paths(self):
         plan = self.build()

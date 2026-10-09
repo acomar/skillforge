@@ -16,7 +16,7 @@ Contexto: situe a fase do personagem e o problema necessário para entender a a�
 
 Corpo: ação, reação, consequência. Uma escolha produz resultado e abre a próxima pergunta. Conectores como “então”, “enquanto isso” e “mas” aparecem nas referências, porém repetir a mesma fórmula em toda frase empobrece a narração. Alternar reação, detalhe e ação dá variedade sem inventar eventos.
 
-Explicação: quando um detalhe exige interpretação, diga o que a imagem/fala sustenta e qual é a conclusão do narrador. A análise extra aparece claramente no vídeo01; não é obrigação de todos os vídeos. O trecho teórico do vídeo02 usa linguagem de possibilidade; não transfira sua promessa de título para afirmações factuais sobre outra obra.
+Explicação: quando um detalhe exige interpretação, diga o que a imagem/fala sustenta e qual é a conclusão do narrador. A análise extra aparece claramente no vídeo01. Nesta aplicação, inclua comentário/análise proporcional à história; um short pode incorporá-la no próprio fechamento, sem forçar uma seção longa. O trecho teórico do vídeo02 usa linguagem de possibilidade; não transfira sua promessa de título para afirmações factuais sobre outra obra.
 
 Fecho: mostre a decisão/resultado e retome a pergunta do gancho. Uma chamada para comentar deve tratar do dilema específico. Diga “ele decide partir” quando só a decisão aparece, e não “ele viaja e termina seu treinamento”.
 
@@ -34,4 +34,4 @@ As referências locais do caso não acompanham a skill pública. Ao aplicar a sk
 
 Use a cadência do perfil apenas para uma estimativa de gravação. Conte palavras do texto limpo, reserve pausas de revelação e considere idioma/locutor. Para um short, selecione um arco com resultado; para relato completo, cubra todos os acontecimentos necessários sem usar o relógio como motivo para preencher.
 
-Entregue texto narrável, beats, painel por beat e notas de evidência. Liste o que ficou fora de uma seleção curta. Não misture direção de câmera com texto de TTS.
+Entregue texto narrável, beats, painel por beat, notas de evidência e estrutura de produção sem anúncios. Identifique gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. A intro silenciosa recebe direção de imagem e som na estrutura, sem instruções no texto falado. Liste o que ficou fora de uma seleção curta. Não misture direção de câmera com texto de TTS.

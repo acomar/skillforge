@@ -24,7 +24,8 @@ O JSON usa `schema_version:1` e `kind:"manga-hq-editing-analysis"`, com:
 - `source_fingerprints`: SHA256 dos objetos em JSON canônico (UTF-8, sort_keys, ensure_ascii=false, separators comma/colon), identificando a versão do roteiro e do inventário.
 - `image_root`: base para resolver arquivos das imagens.
 - `image_catalog`: páginas/painéis, arquivos, classe, sínteses, descrições, personagens e tags para busca.
-- `shots`: beat→fala→arquivo→página/painel→bbox, descrição e notas de edição.
+- `shots`: beat→fala→arquivo→página/painel→bbox, descrição, notas de edição e `section_id` quando fornecido.
+- `production_structure`: plano completo sem anúncios, quando presente no roteiro; preserva também módulos silenciosos como vinheta e cartão final. Ver [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
 - Avisos/limites: dados faltantes e necessidade de alinhar ao áudio gravado.
 
 O Markdown mostra planos e catálogo, inclui links para imagens e identifica páginas excluídas. Use busca por nome, ação ou detalhe; confira a imagem encontrada antes de escolhê-la. Anúncios podem constar no catálogo para identificação, mas nunca são selecionados como planos narrativos.

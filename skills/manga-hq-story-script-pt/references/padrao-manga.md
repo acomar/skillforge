@@ -1,6 +1,6 @@
 # Perfil manga azul — evidências e aplicação
 
-Perfil `manga-blue-longform-v1`, versão0.1.0, extraído em2026-10-09 com `video-editing-longform-pt`. Quatro arquivos horizontais de12:49 a20:11, total68:33.369. Foram concluídos16 capítulos de análise computacional e ASR local da faixa portuguesa inteira dos quatro. A revisão visual cobriu208 amostras regulares de20s e intervalos densos de1fps em aberturas, corpo e finais. Isso não equivale a assistir continuamente todos os vídeos com imagem e som. A mesma versão deste perfil acompanha as duas skills para uso independente.
+Perfil `manga-blue-longform-v1`, versão0.2.0, extraído em2026-10-09 com `video-editing-longform-pt`. Quatro arquivos horizontais de12:49 a20:11, total68:33.369. Foram concluídos16 capítulos de análise computacional e ASR local da faixa portuguesa inteira dos quatro. A revisão visual cobriu208 amostras regulares de20s e intervalos densos de1fps em aberturas, corpo e finais. Isso não equivale a assistir continuamente todos os vídeos com imagem e som. A mesma versão deste perfil acompanha as duas skills para uso independente.
 
 ## Roteiro e storytelling
 
@@ -10,7 +10,7 @@ Nos trechos ASR, conectores de progressão são recorrentes: “então” aparec
 
 Vídeo01 tem relato até~10:19.5 e análise explícita até~12:03.3. Vídeo02 contém anúncio de navegador~31–125s e comenta possibilidades no terço final. Vídeo03 tem recapitulação depois~32.6s e análise/hipóteses no final; a abertura promete abrir o olho, enquanto o comentário final ainda fala dessa possibilidade. Vídeo04 narra origem/história, com comentário explicativo no meio e opinião depois~16:15. Copie a construção do interesse, mantendo fatos e incertezas da fonte atual; a promessa de um título não é evidência.
 
-Em longform, gancho~20–30s + vinheta~2–4s são compatíveis com a referência. Em shorts, comprima para1–5s e elimine etapas que atrasem o arco. Duração final é proporcional à história e ao áudio; anúncio e vinheta de marca não são obrigatórios.
+Em longform, gancho~20–30s + vinheta~2–4s são compatíveis com a referência. Na aplicação deste projeto, reproduza gancho, intro/vinheta, contexto, recap, comentários/análise, revelações, CTA e outro; exclua publicidade e patrocínio. A marca da vinheta pertence ao projeto, com título neutro original quando não houver identidade fornecida. Em shorts, comprima o gancho para1–5s e una funções para preservar o arco. Duração final é proporcional à história e ao áudio. O processo completo está em [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
 
 ## Imagem e montagem
 
@@ -22,7 +22,7 @@ Em01/02,10 intervalos completos revisados sustentam6–14s por painel; medianas 
 
 Zoom medido em03,10:11→10:20: área visível ciano cresce296→605px emframe640px, fator~2.04 em9s. Algumas referências alternam crescer/encolher; outras têm sequências de vários zooms de entrada. Default de adaptação1→1.8 ou1.8→1, com escala/easing ajustados ao recorte. Trocas do corpo usam fade pela camada azul;0.4s é implementação recomendada, não duração de transição medida quadro a quadro.
 
-Aberturas usam imagens coloridas, partículas e clarões; a vinheta mostra marca da referência. Encerramentos usam anime em tela cheia e montagem muito mais rápida, começando~12:04 em01,~17:17 em02,~19:47 em03 e~16:15 em04. Não use esses cortes de anime para determinar cadência de painel. Sem esse material, feche com painéis fornecidos e resultado da história. Não copiar marca ou ativos de terceiros para a skill.
+Aberturas usam imagens coloridas, partículas e clarões; a vinheta mostra marca da referência. Encerramentos usam anime em tela cheia e montagem muito mais rápida, começando~12:04 em01,~17:17 em02,~19:47 em03 e~16:15 em04. Não use esses cortes de anime para determinar cadência de painel. Sem esse material, reproduza a função da montagem rápida com painéis fornecidos, closes e resultado da história. Use identidade e ativos do projeto; a skill pública não inclui arquivos de marca, clipes ou trilha das referências.
 
 Não foram vistas legendas da locução nos frames inspecionados. Legendas, verticalização e manutenção de cor da HQ são adaptações possíveis por pedido do usuário.
 

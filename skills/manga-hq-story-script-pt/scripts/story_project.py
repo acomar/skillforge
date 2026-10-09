@@ -22,6 +22,7 @@ from urllib.parse import quote
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tif", ".tiff"}
 STATUSES = {"narrative", "cover", "advertisement", "editorial"}
 DIRECTIONS = {"left-to-right", "right-to-left"}
+AD_SECTION_KINDS = {"advertisement", "ad", "sponsor", "sponsorship", "commercial", "promotion"}
 
 
 class ProjectError(ValueError):
@@ -195,6 +196,65 @@ def validate_descriptive_fields(obj, label):
     return errors
 
 
+def validate_production_structure(script):
+    """Check optional section links without ordering or generating any beats."""
+    errors = []
+    beats = script.get("beats", [])
+    beats = beats if isinstance(beats, list) else []
+    beat_map = {beat["id"]: beat for beat in beats
+                if isinstance(beat, dict) and isinstance(beat.get("id"), str)}
+    structure = script.get("production_structure")
+    if "production_structure" not in script:
+        if any(isinstance(beat, dict) and "section_id" in beat for beat in beats):
+            errors.append("section_id exige production_structure com sections.")
+        return errors
+    if not isinstance(structure, dict) or not isinstance(structure.get("sections"), list):
+        return ["production_structure deve ser objeto com sections como lista."]
+    section_map, memberships = {}, {}
+    for section in structure["sections"]:
+        if not isinstance(section, dict):
+            errors.append("production_structure: seção deve ser objeto.")
+            continue
+        sid = section.get("id")
+        if not isinstance(sid, str) or not sid.strip():
+            errors.append("production_structure: seção sem id válido.")
+            continue
+        if sid in section_map:
+            errors.append(f"production_structure: ID de seção duplicado: {sid}.")
+        section_map[sid] = section
+        kind = section.get("kind")
+        if not isinstance(kind, str) or not kind.strip():
+            errors.append(f"{sid}: kind deve ser texto não vazio.")
+        elif kind.strip().casefold() in AD_SECTION_KINDS:
+            errors.append(f"{sid}: seção de publicidade não permitida nesta produção sem anúncios.")
+        if "goal" in section and not isinstance(section["goal"], str):
+            errors.append(f"{sid}: goal deve ser texto.")
+        if "beats" in section:
+            refs = section["beats"]
+            if not isinstance(refs, list):
+                errors.append(f"{sid}: beats deve ser lista de IDs.")
+                continue
+            for bid in refs:
+                if not isinstance(bid, str) or bid not in beat_map:
+                    errors.append(f"{sid}: beats referencia ID inexistente.")
+                elif bid in memberships:
+                    errors.append(f"{sid}: beat associado a mais de uma seção ou duplicado: {bid}.")
+                else:
+                    memberships[bid] = sid
+    for bid, beat in beat_map.items():
+        if "section_id" not in beat:
+            continue
+        sid = beat["section_id"]
+        if not isinstance(sid, str) or sid not in section_map:
+            errors.append(f"{bid}: section_id deve referenciar uma seção existente.")
+            continue
+        section = section_map[sid]
+        if ((bid in memberships and memberships[bid] != sid)
+                or (isinstance(section.get("beats"), list) and bid not in section["beats"])):
+            errors.append(f"{bid}: section_id diverge dos beats declarados na seção.")
+    return errors
+
+
 def validate(manifest, script):
     errors = []
     if not isinstance(manifest, dict) or not isinstance(script, dict):
@@ -208,6 +268,7 @@ def validate(manifest, script):
         errors.append("A direção de leitura do roteiro diverge do manifesto.")
     if "narrative_order" in script and script["narrative_order"] not in ("source-order", "editorial"):
         errors.append("narrative_order deve ser source-order ou editorial.")
+    errors.extend(validate_production_structure(script))
     pages = manifest.get("pages")
     if not isinstance(pages, list) or not pages:
         return errors + ["Manifesto sem lista de páginas."]
@@ -388,19 +449,24 @@ def editing_analysis(manifest, script, output_dir, image_root=None):
                 "editorial_notes": copy.deepcopy(beat.get("editorial_notes", ""))}
         if "motion" in beat:
             shot["motion"] = copy.deepcopy(beat["motion"])
+        if "section_id" in beat:
+            shot["section_id"] = beat["section_id"]
         if not shot["description"]:
             warnings.append(f"{beat['id']}: descrição visual ausente; consultar a imagem indicada.")
         shots.append(shot)
     root_hint = analysis_image_root(image_root, output_dir)
     if root_hint is None:
         warnings.append("Raiz das imagens não informada; a edição precisa de --image-root.")
-    return {"schema_version": 1, "kind": "manga-hq-editing-analysis",
+    analysis = {"schema_version": 1, "kind": "manga-hq-editing-analysis",
             "manifest": copy.deepcopy(manifest), "script": copy.deepcopy(script),
             "source_fingerprints": {"manifest_sha256": canonical_sha256(manifest),
                                     "script_sha256": canonical_sha256(script)},
             "image_root": root_hint, "image_catalog": catalog, "shots": shots,
             "notes": "timestamps require supplied audio alignment",
             "warnings": warnings}
+    if "production_structure" in script:
+        analysis["production_structure"] = copy.deepcopy(script["production_structure"])
+    return analysis
 
 
 def markdown_text(value):
@@ -429,8 +495,31 @@ def analysis_markdown(analysis):
              "Este arquivo relaciona o roteiro às páginas e aos painéis já revisados. "
              "As descrições vêm das fontes fornecidas; o exportador não interpreta imagens.", "",
              "Os tempos devem vir do alinhamento com o áudio de narração fornecido.", "",
-             root_description, "",
-             "## Roteiro e imagens por beat", ""]
+             root_description, ""]
+    if "production_structure" in analysis:
+        structure = analysis["production_structure"]
+        lines.extend(["## Estrutura completa da produção", "",
+                      "Este plano preserva gancho, intro/vinheta, desenvolvimento e encerramento. "
+                      "As seções são orientações de montagem; este arquivo não confirma que esses módulos "
+                      "foram renderizados nem fornece tempos finais de áudio.", ""])
+        extras = {key: value for key, value in structure.items() if key != "sections"}
+        if extras:
+            lines.extend(["Plano geral:", "", "```json", json.dumps(extras, ensure_ascii=False, indent=2), "```", ""])
+        for section in structure["sections"]:
+            sid = section["id"]
+            refs = section.get("beats", [shot["beat_id"] for shot in analysis["shots"]
+                                         if shot.get("section_id") == sid])
+            lines.extend([f"### {markdown_text(sid)} — {markdown_text(section['kind'])}", ""])
+            if section.get("goal"):
+                lines.extend([markdown_text(section["goal"]), ""])
+            lines.append("- Beats: " + (", ".join(f"`{markdown_text(bid)}`" for bid in refs)
+                                          if refs else "nenhum; elemento de produção sem beat narrado."))
+            details = {key: value for key, value in section.items() if key not in {"id", "kind", "goal", "beats"}}
+            if details:
+                lines.extend(["", "Orientações fornecidas (durações estimadas não são marcas confirmadas):", "",
+                              "```json", json.dumps(details, ensure_ascii=False, indent=2), "```"])
+            lines.append("")
+    lines.extend(["## Roteiro e imagens por beat", ""])
     for shot in analysis["shots"]:
         lines.extend([f"### {markdown_text(shot['beat_id'])} — {markdown_text(shot['purpose'])}", "",
                       shot["narration"], "",
@@ -440,6 +529,8 @@ def analysis_markdown(analysis):
                       f"- Descrição: {markdown_text(shot['description']) or 'Não fornecida; conferir a imagem.'}",
                       f"- Personagens: {markdown_text(', '.join(shot['characters'])) or 'Não informados.'}",
                       f"- Palavras-chave visuais: {markdown_text(', '.join(shot['visual_tags'])) or 'Não informadas.'}"])
+        if "section_id" in shot:
+            lines.append(f"- Seção de produção: `{markdown_text(shot['section_id'])}`.")
         refs = ", ".join(f"{ref['page_id']}/{ref['panel_id']}" for ref in shot["evidence_refs"])
         lines.append(f"- Evidências de apoio: {markdown_text(refs)}.")
         notes = shot["editorial_notes"]

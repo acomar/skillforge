@@ -68,6 +68,8 @@ Este exemplo é apenas sintaxe, não fato de uma obra. Cada beat exige `id`, `na
 
 `narration` no nível superior é opcional; se incluída, precisa ser exatamente os textos dos beats unidos por duas quebras de linha. Não inclua rubricas, timecodes ou instruções de câmera no texto falado.
 
+Para novos projetos, registre também `production_structure.sections` com IDs/funções dos módulos e `section_id` nos beats. Vinheta sem fala usa seção sem beats, não narração ou painel fictício. Leia [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md) para o contrato, a sequência completa e a adaptação para shorts. A estrutura é opcional no helper para compatibilidade com arquivos antigos, mas faz parte do planejamento padrão da skill.
+
 ## Validação e exportação
 
 ```text

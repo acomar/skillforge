@@ -1,15 +1,15 @@
 ---
 name: manga-hq-video-editor-pt
-description: Edita vídeos de recap de HQ ou mangá com roteiro, áudio e imagens locais, usando painéis ciano, fundo azul animado, zooms, fades e sincronização da narração. Use para montar e renderizar nesse padrão; a criação do roteiro pertence à skill de roteiro.
+description: Produz vídeos completos de recap de HQ ou mangá sem anúncios, com gancho, intro, corpo azul/ciano, análise, CTA, outro e mix, a partir de roteiro, áudio, imagens e análise local. Use para montar e renderizar o padrão completo; a criação do roteiro pertence à skill de roteiro.
 metadata:
   category: content
   status: experimental
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Edição de HQ e mangá no padrão azul
 
-Monte um vídeo em que a imagem acompanha a fala: painéis isolados em ciano, fundo azul com formas e partículas, aproximações/afastamentos amplos e fades suaves. Leia [references/padrao-manga.md](references/padrao-manga.md) para valores medidos e recomendações.
+Monte o vídeo completo no padrão analisado: gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e montagem final, sem anúncios. Painéis ciano, fundo azul animado, zooms e fades formam o corpo; a abertura e o final têm tratamento próprio. Leia [references/padrao-manga.md](references/padrao-manga.md) para valores medidos e [references/estrutura-completa-sem-anuncios.md](references/estrutura-completa-sem-anuncios.md) para executar todos os módulos e compor o master.
 
 ## Preparar e sincronizar
 
@@ -32,17 +32,18 @@ O contrato está em [references/contrato-da-timeline.md](references/contrato-da-
 - Corpo: luminância preto→ciano com traços/rostos legíveis. Isole quadros em vez de manter a página inteira. HQ colorida pode receber o tratamento ou preservar cor por preferência do usuário; registre a escolha.
 - Alterne zoom de entrada/saída conforme o foco. Uma amostra cresce cerca de 2× em 9 segundos; use alcance amplo quando preservar a ação, reduzindo-o quando rosto/balão exigir leitura. Crop intencional pode ocorrer, sem cortar o elemento que sustenta a fala.
 - Fundo azul animado e fades curtos revelando esse fundo entre planos. Preserve proporção da imagem e evite saltos de escala dentro de um beat.
-- Abertura pode usar painéis coloridos e flashes discretos; marca/vinheta são opcionais, sobretudo em shorts. Montagens rápidas de encerramento não representam o ritmo do corpo de mangá.
+- Produza gancho com imagens coloridas, partículas, aproximações e clarões discretos; em seguida uma intro/vinheta original do projeto. Use a identidade fornecida ou título neutro do episódio sobre o fundo azul. O encerramento usa montagem mais rápida com o material do projeto. Em shorts comprima a vinheta/transição e una módulos quando necessário.
 - Não acrescente legendas narrativas por padrão: ausentes nas amostras examinadas. Balões da fonte continuam na imagem. Legendas pedidas são adaptação e precisam de conferência.
-- Renderer oferece uma base reproduzível do corpo visual. Abertura especial, marca, impactos, trilha e encerramento exigem montagem/revisão quando pedidos; não declare esses elementos executados só por constarem no perfil.
+- Use `render_manga.py` como componente do corpo, inclusive planos narrados em cor original. Depois execute a composição de intro silenciosa, títulos, impactos, trilha/efeitos e outro com FFmpeg ou editor disponível. Esses módulos fazem parte da entrega padrão; metadados `production_structure` não os renderizam automaticamente. Confira cada módulo no arquivo final e registre qualquer pendência concreta.
+- Exclua propaganda, patrocínio e oferta comercial, tanto dos vídeos de referência quanto das páginas da HQ. CTA de comentário, inscrição/seguir e próximos conteúdos permanece no formato.
 
-Use áudio contínuo na montagem final; concatenar AAC reencodado por beat pode acumular atraso. Meça loudness do mix completo, aplique ganho com headroom e confira a saída. Não invente trilha ou efeitos como se estivessem entre os materiais recebidos.
+Use áudio contínuo na montagem final; concatenar AAC reencodado por beat pode acumular atraso. A vinheta silenciosa precisa de intervalo próprio, preservando o alinhamento do restante da fala. Use trilha e efeitos fornecidos ou camadas originais simples, documentando sua origem; não atribua a música criada à referência. Meça loudness do mix completo, aplique ganho com headroom e confira a saída.
 
 ## Renderizar e revisar
 
 Valide o plano e faça primeiro uma prévia representativa com material real. Confira recortes, ciano, foco, extremos de zoom, fades, mudanças de página e sincronismo. Corrija problemas observados antes do master.
 
-Entregue vídeo, plano JSON e relatório curto. Verifique decodificação completa, duração/cobertura, streams, resolução/fps, loudness e início/fim. Validação técnica não prova fidelidade narrativa: confira também se a imagem sustenta cada frase e se o escopo inteiro foi coberto.
+Entregue vídeo completo, plano JSON e relatório dos módulos realmente executados. Confira gancho, intro, contexto, corpo, análise/revelações, CTA, outro e mix; ausência de anúncio é requisito. Verifique decodificação completa, duração/cobertura, streams, resolução/fps, loudness e início/fim. Validação técnica não prova fidelidade narrativa: confira também se a imagem sustenta cada frase e se o escopo inteiro foi coberto.
 
 Declare o que foi renderizado, trechos revisados e adaptações. Helpers testados com mídia sintética e prévia curta não certificam um master de 20 minutos.
 
