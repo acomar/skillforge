@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "profile_id": "manga-blue-longform-v1",
+  "version": "0.1.0",
+  "language": "pt-BR",
+  "corpus": [
+    {
+      "video_id": "video-01",
+      "duration_seconds": 769.369977,
+      "portuguese_stream_index": 0,
+      "asr_word_count": 1856,
+      "whole_file_words_per_minute": 144.7,
+      "minute_word_count_median": 145.5,
+      "title": "IMU ACABA DE DERROTAR ZORO",
+      "integrated_lufs": -16.7,
+      "lra_lu": 3.2,
+      "true_peak_dbfs": 0.1,
+      "macro_frames": 39,
+      "chapters": 3,
+      "visual_outro_start_seconds": 724,
+      "sections_approx": [
+        "0–25s",
+        "~25.6–29s",
+        "~30–619.5s",
+        "619.5–723.3s",
+        "~724–769.4s"
+      ]
+    },
+    {
+      "video_id": "video-02",
+      "duration_seconds": 1061.987846,
+      "portuguese_stream_index": 0,
+      "asr_word_count": 2626,
+      "whole_file_words_per_minute": 148.4,
+      "minute_word_count_median": 148,
+      "title": "INSANO! ZORO DESPERTA SEU PODER FINAL",
+      "integrated_lufs": -17.9,
+      "lra_lu": 3.0,
+      "true_peak_dbfs": -0.7,
+      "macro_frames": 54,
+      "chapters": 4,
+      "visual_outro_start_seconds": 1037,
+      "sections_approx": [
+        "0–27.3s",
+        "~28–31s",
+        "127.7–795.3s",
+        "795.3–1015.8s; ponte1015.8–1035.2s",
+        "~1037–1062s"
+      ]
+    },
+    {
+      "video_id": "video-03",
+      "duration_seconds": 1211.385034,
+      "portuguese_stream_index": 1,
+      "asr_word_count": 2994,
+      "whole_file_words_per_minute": 148.3,
+      "minute_word_count_median": 149.0,
+      "title": "O DESPERTAR DO OLHO DE ZORO",
+      "integrated_lufs": -17.4,
+      "lra_lu": 2.8,
+      "true_peak_dbfs": -0.8,
+      "macro_frames": 61,
+      "chapters": 5,
+      "visual_outro_start_seconds": 1187,
+      "sections_approx": [
+        "0–28.5s",
+        "~29–31s",
+        "32.6–~1030s",
+        "~1030–1186s",
+        "~1187–1211.4s"
+      ]
+    },
+    {
+      "video_id": "video-04",
+      "duration_seconds": 1070.625669,
+      "portuguese_stream_index": 0,
+      "asr_word_count": 2700,
+      "whole_file_words_per_minute": 151.3,
+      "minute_word_count_median": 150,
+      "title": "REVELADO OS OLHOS AMALDIÇOADOS DE LOKI",
+      "integrated_lufs": -16.4,
+      "lra_lu": 2.7,
+      "true_peak_dbfs": -0.0,
+      "macro_frames": 54,
+      "chapters": 4,
+      "visual_outro_start_seconds": 975,
+      "sections_approx": [
+        "0–27.1s",
+        "~27.4–30s",
+        "31.1–~975s",
+        "~975–1036s",
+        "~1036–1070.6s"
+      ]
+    }
+  ],
+  "coverage": {
+    "videos": 4,
+    "duration_seconds": 4113.368526,
+    "chapters_complete": 16,
+    "macro_frames_reviewed": 208,
+    "full_selected_track_asr": true,
+    "dense_visual_samples": true,
+    "full_audiovisual_watch": false
+  },
+  "observed": {
+    "canvas": {
+      "width": 1920,
+      "height": 1080,
+      "fps": "30000/1001"
+    },
+    "body_panel_seconds_reviewed_sample_range": [
+      6,
+      14
+    ],
+    "panel_duration_sample_size_01_02": 10,
+    "panel_color_frame_sample": "#50AEFF",
+    "background_colors_frame_samples": [
+      "#0701C7",
+      "#0B0068"
+    ],
+    "zoom_example": {
+      "video_id": "video-03",
+      "start_seconds": 611,
+      "end_seconds": 620,
+      "visible_width_ratio": 2.04,
+      "frame_width_px": 640,
+      "from_visible_width_px": 296,
+      "to_visible_width_px": 605
+    },
+    "narrative_subtitles_seen": false,
+    "audio_languages": [
+      "pt",
+      "en"
+    ],
+    "portuguese_track_codec": "HE-AAC",
+    "portuguese_track_bitrate_approx_kbps": 48,
+    "audio_sample_rate": 44100
+  },
+  "recommended_defaults": {
+    "delivery_wpm_range": [
+      140,
+      155
+    ],
+    "body_panel_seconds_range": [
+      6,
+      14
+    ],
+    "zoom_scales": [
+      1,
+      1.8
+    ],
+    "fade_seconds": 0.4,
+    "mix_target_lufs": -17,
+    "max_true_peak_dbtp": -1,
+    "subtitles": false,
+    "opening_seconds_longform": [
+      20,
+      30
+    ],
+    "sting_seconds": [
+      2,
+      4
+    ],
+    "short_opening_seconds": [
+      1,
+      5
+    ]
+  },
+  "implementation_boundary": "Helpers support evidence mapping, reviewed beat alignment and original blue/cyan body rendering. Opening/sting/music/effects/CTA need project-specific editing. Defaults are adaptation, not recovered project values.",
+  "limitations": [
+    "Shot detector .3 misses blue body fades: candidates are not shots",
+    "ASR names/counts/punctuation may be wrong; counts include ads and CTA",
+    "Visual review consists of all macro samples plus dense ranges, not continuous full playback",
+    "Mix loudness measured on selected full track; voice/music stems and exact processing unavailable",
+    "Zoom boxes/palette measured on sampled encoded frames, not original keyframes/LUT"
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Editor de HQ e mangá"
+  short_description: "Vídeo azul com painéis, áudio e zooms sincronizados"
+  default_prompt: "Use $manga-hq-video-editor-pt para montar meu roteiro, áudio e imagens no padrão manga azul e renderizar uma prévia."
