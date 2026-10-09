@@ -38,6 +38,7 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 ## Skills disponíveis
 
 - [skillforge-maintainer](skills/skillforge-maintainer/SKILL.md): criar, revisar e manter esta biblioteca de skills.
+- [video-editing-longform-pt](skills/video-editing-longform-pt/SKILL.md): analisar referências e recriar ou editar vídeos longos, com capítulos, retomada e validação. Status experimental.
 
 ## Organização e uso
 

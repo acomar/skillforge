@@ -1,0 +1,36 @@
+{
+  "schema_version": "editorial-plan-1",
+  "purpose": "Exemplo preenchido de contrato editorial; nao executavel pelo helper.",
+  "mode": "recreate",
+  "delivery": {
+    "width": 1920,
+    "height": 1080,
+    "fps": "30000/1001",
+    "expected_duration_seconds": 12.012,
+    "video_codec": "h264",
+    "audio_codec": "aac",
+    "audio_sample_rate": 48000
+  },
+  "sources": [
+    {"id": "reference", "path": "reference.mp4", "role": "reference"},
+    {"id": "source-a", "path": "footage/source-a.mp4", "role": "picture-and-dialogue"}
+  ],
+  "beats": [
+    {
+      "id": "beat-001",
+      "reference_range_seconds": [0, 12.012],
+      "source_id": "source-a",
+      "source_range_seconds": [34, 46.012],
+      "output_range_seconds": [0, 12.012],
+      "speed": 1,
+      "track": "picture-1",
+      "treatment": {"framing": "preserve-source", "transition_out": "cut"},
+      "audio": {"dialogue": "source-a", "music": null},
+      "text": null,
+      "evidence": "example-only",
+      "review": "Conferir enquadramento e sincronismo com o material real."
+    }
+  ],
+  "differences": [],
+  "coverage": {"analyzed_ranges_seconds": [], "watched_ranges_seconds": []}
+}

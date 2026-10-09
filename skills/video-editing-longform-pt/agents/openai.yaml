@@ -1,0 +1,4 @@
+interface:
+  display_name: "Edição de vídeos longos"
+  short_description: "Analise e recrie montagens com capítulos e revisão"
+  default_prompt: "Use $video-editing-longform-pt para analisar esta referência e recriar sua montagem com os materiais fornecidos."
