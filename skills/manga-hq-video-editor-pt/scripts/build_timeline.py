@@ -5,11 +5,14 @@ Python 3.11+ and FFprobe. This helper does not transcribe or force-align audio.
 Confirmed beat timestamps create a renderable plan. Word-count estimates create
 only a draft, explicitly rejected for final rendering by the companion renderer.
 Paths in manifests resolve against --image-root or the manifest directory; media
-paths in the generated plan resolve against that plan's directory.
+paths in the generated plan resolve against that plan's directory. --analysis
+accepts the reviewed handoff from the story skill, including embedded evidence
+and a portable image_root; it requires no duplicate manifest/script files.
 """
 from __future__ import annotations
 
 import argparse
+import copy
 from fractions import Fraction
 import hashlib
 import json
@@ -59,6 +62,16 @@ def sha256(path):
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def semantic_sha256(value):
+    """Hash embedded source objects independently of JSON file formatting."""
+    try:
+        data = json.dumps(value, ensure_ascii=False, sort_keys=True,
+                          separators=(",", ":"), allow_nan=False).encode("utf-8")
+    except (TypeError, ValueError) as exc:
+        raise TimelineError(f"Objeto não possui representação JSON canônica: {exc}") from exc
+    return hashlib.sha256(data).hexdigest()
 
 
 def fps_value(value):
@@ -258,20 +271,23 @@ def draft_frames(beats, duration, fps):
     return rows, total
 
 
-def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment_path=None,
-               confirm_alignment=False, draft=False, image_root=None, audio_stream=None,
-               fps="30000/1001", width=1920, height=1080):
-    manifest_path, script_path, audio_path, output_path = [Path(p).resolve() for p in (manifest_path, script_path, audio_path, output_path)]
-    if output_path in {manifest_path, script_path, audio_path} or output_path.exists():
+def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
+                source_paths=(), alignment_path=None, confirm_alignment=False,
+                draft=False, audio_stream=None, fps="30000/1001", width=1920,
+                height=1080):
+    audio_path, output_path = [Path(p).resolve() for p in (audio_path, output_path)]
+    protected = {audio_path, *(Path(p).resolve() for p in source_paths)}
+    if alignment_path is not None:
+        protected.add(Path(alignment_path).resolve())
+    if output_path in protected or output_path.exists():
         raise TimelineError("Saída já existe ou coincide com uma fonte; escolha arquivo novo.")
     rate = fps_value(fps)
     for label, value in (("width", width), ("height", height)):
         if isinstance(value, bool) or not isinstance(value, int) or value < 2 or value % 2:
             raise TimelineError(f"{label}: dimensão deve ser inteiro positivo par.")
-    images = Path(image_root).resolve() if image_root else manifest_path.parent
+    images = Path(images).resolve()
     if not images.is_dir():
         raise TimelineError("image_root inexistente.")
-    manifest, script = load_json(manifest_path), load_json(script_path)
     evidence = checked_evidence(manifest, script, images)
     if any(output_path == item["image"] for item in evidence):
         raise TimelineError("Saída coincide com imagem de origem.")
@@ -319,7 +335,7 @@ def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment
             "audio": {"file": relative_media(audio_path, output_path.parent), **audio},
             "alignment": {"method": method, "confirmed": method != "estimated-word-count", "frame_quantized": True,
                           "precision_claim": "reviewed beat intervals; no forced alignment performed by this helper"},
-            "sources": {"manifest_sha256": sha256(manifest_path), "script_sha256": sha256(script_path)},
+            "sources": sources,
             "beats": planned,
             "limitations": (["Tempos por peso de palavras são estimativas; revise contra o áudio e crie alignment confirmado antes de master."] if not ready else ["Revisão declarada das marcas/recortes não substitui conferir o preview, sincronismo perceptivo e conteúdo."])}
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -330,13 +346,141 @@ def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment
     return plan
 
 
+def build_plan(manifest_path, script_path, audio_path, output_path, *, alignment_path=None,
+               confirm_alignment=False, draft=False, image_root=None, audio_stream=None,
+               fps="30000/1001", width=1920, height=1080):
+    """Original manifest/script API retained for existing projects."""
+    manifest_path, script_path = [Path(p).resolve() for p in (manifest_path, script_path)]
+    return _build_plan(load_json(manifest_path), load_json(script_path), audio_path,
+                       output_path, images=Path(image_root).resolve() if image_root else manifest_path.parent,
+                       sources={"manifest_sha256": sha256(manifest_path),
+                                "script_sha256": sha256(script_path)},
+                       source_paths=(manifest_path, script_path), alignment_path=alignment_path,
+                       confirm_alignment=confirm_alignment, draft=draft,
+                       audio_stream=audio_stream, fps=fps, width=width, height=height)
+
+
+def checked_analysis(analysis):
+    """Verify that the handoff index still describes its embedded evidence."""
+    if (not isinstance(analysis, dict) or analysis.get("schema_version") != 1
+            or isinstance(analysis.get("schema_version"), bool)
+            or analysis.get("kind") != "manga-hq-editing-analysis"):
+        raise TimelineError("Análise deve usar schema_version=1 e kind=manga-hq-editing-analysis.")
+    manifest, script = analysis.get("manifest"), analysis.get("script")
+    if not isinstance(manifest, dict) or not isinstance(script, dict):
+        raise TimelineError("Análise deve conter manifesto e roteiro embutidos como objetos.")
+    fingerprints = analysis.get("source_fingerprints")
+    if not isinstance(fingerprints, dict):
+        raise TimelineError("Análise deve conter source_fingerprints.")
+    hashes = {}
+    for name, value in (("manifest", manifest), ("script", script)):
+        expected = fingerprints.get(f"{name}_sha256")
+        actual = semantic_sha256(value)
+        if not isinstance(expected, str) or not re.fullmatch(r"[0-9a-f]{64}", expected) or expected != actual:
+            raise TimelineError(f"Análise desatualizada: fingerprint do {name} diverge do objeto embutido.")
+        hashes[f"{name}_semantic_sha256"] = actual
+    pages, beats = manifest.get("pages"), script.get("beats")
+    if not isinstance(pages, list) or not isinstance(beats, list) or not pages or not beats:
+        raise TimelineError("Análise deve conter pages e beats não vazios.")
+    page_map, panel_map, beat_map = {}, {}, {}
+    for page in pages:
+        if not isinstance(page, dict):
+            raise TimelineError("Página embutida deve ser objeto.")
+        pid = valid_id(page.get("id"), "Página")
+        if pid in page_map:
+            raise TimelineError(f"ID de página duplicado: {pid}.")
+        page_map[pid] = page
+        panels = page.get("panels")
+        if not isinstance(panels, list):
+            raise TimelineError(f"{pid}: panels deve ser lista.")
+        for panel in panels:
+            if not isinstance(panel, dict):
+                raise TimelineError(f"{pid}: painel deve ser objeto.")
+            qid = valid_id(panel.get("id"), f"{pid} painel")
+            if (pid, qid) in panel_map:
+                raise TimelineError(f"ID de painel duplicado: {pid}/{qid}.")
+            panel_map[(pid, qid)] = panel
+    for beat in beats:
+        if not isinstance(beat, dict):
+            raise TimelineError("Beat embutido deve ser objeto.")
+        bid = valid_id(beat.get("id"), "Beat")
+        if bid in beat_map:
+            raise TimelineError(f"ID de beat duplicado: {bid}.")
+        beat_map[bid] = beat
+    catalog, shots = analysis.get("image_catalog"), analysis.get("shots")
+    if not isinstance(catalog, list):
+        raise TimelineError("Análise deve conter image_catalog como lista.")
+    if not isinstance(shots, list) or len(shots) != len(beats):
+        raise TimelineError("Análise deve conter exatamente um shot por beat do roteiro.")
+    seen = set()
+    for shot in shots:
+        if not isinstance(shot, dict):
+            raise TimelineError("Shot da análise deve ser objeto.")
+        bid = valid_id(shot.get("beat_id"), "Shot beat_id")
+        if bid in seen:
+            raise TimelineError(f"Shot duplicado para beat: {bid}.")
+        seen.add(bid)
+        if bid not in beat_map:
+            raise TimelineError(f"Shot referencia beat inexistente: {bid}.")
+        beat = beat_map[bid]
+        pid, qid = beat.get("page_id"), beat.get("panel_id")
+        if not isinstance(pid, str) or pid not in page_map or not isinstance(qid, str) or (pid, qid) not in panel_map:
+            raise TimelineError(f"{bid}: referência de página/painel inexistente.")
+        expected = {"page_id": pid, "panel_id": qid, "narration": beat.get("narration"),
+                    "file": page_map[pid].get("file"), "bbox": bbox(panel_map[(pid, qid)].get("bbox"), bid)}
+        for field, value in expected.items():
+            candidate = bbox(shot.get(field), bid) if field == "bbox" else shot.get(field)
+            if candidate != value:
+                raise TimelineError(f"{bid}: shot {field} diverge do manifesto/roteiro embutido.")
+    # Search descriptions/tags are advisory. Rendering follows confirmed IDs and
+    # embedded evidence, never a semantic guess from the catalog.
+    return manifest, script, hashes
+
+
+def build_from_analysis(analysis_path, audio_path, output_path, *, alignment_path=None,
+                        confirm_alignment=False, draft=False, image_root=None,
+                        audio_stream=None, fps="30000/1001", width=1920, height=1080,
+                        confirm_legibility=False):
+    analysis_path = Path(analysis_path).resolve()
+    analysis = load_json(analysis_path)
+    manifest, script, hashes = checked_analysis(analysis)
+    sources = {"analysis_sha256": sha256(analysis_path), **hashes}
+    if confirm_legibility:
+        # This declares an actual editorial review of crops and planned motion;
+        # it does not change the source or imply confirmed audio timestamps.
+        script = copy.deepcopy(script)
+        for beat in script["beats"]:
+            beat["legibility_reviewed"] = True
+        sources["legibility_confirmation"] = "declared-after-editorial-review"
+        sources["effective_script_semantic_sha256"] = semantic_sha256(script)
+    if image_root is not None:
+        images = Path(image_root).resolve()
+    else:
+        root_hint = analysis.get("image_root")
+        if not isinstance(root_hint, str) or not root_hint.strip():
+            raise TimelineError("Análise sem image_root; informe --image-root com a pasta de imagens.")
+        images = (analysis_path.parent / root_hint).resolve()
+    return _build_plan(manifest, script, audio_path, output_path, images=images,
+                       sources=sources,
+                       source_paths=(analysis_path,), alignment_path=alignment_path,
+                       confirm_alignment=confirm_alignment, draft=draft,
+                       audio_stream=audio_stream, fps=fps, width=width, height=height)
+
+
 def main(argv=None):
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--script", type=Path, required=True)
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--manifest", type=Path)
+    source.add_argument("--analysis", type=Path)
+    parser.add_argument("--script", type=Path)
     parser.add_argument("--audio", type=Path, required=True)
     parser.add_argument("--alignment", type=Path)
     parser.add_argument("--confirm-alignment", action="store_true")
+    parser.add_argument("--confirm-legibility", action="store_true",
+                        help="Com --analysis, declara revisão real dos recortes e movimentos; não confirma sincronismo.")
     parser.add_argument("--draft", action="store_true")
     parser.add_argument("--image-root", type=Path)
     parser.add_argument("--audio-stream", type=int)
@@ -345,11 +489,22 @@ def main(argv=None):
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.analysis is not None and args.script is not None:
+        parser.error("--analysis substitui --manifest e --script; não combine essas entradas.")
+    if args.manifest is not None and args.script is None:
+        parser.error("--manifest exige --script.")
+    if args.confirm_legibility and args.analysis is None:
+        parser.error("--confirm-legibility exige --analysis.")
     try:
-        plan = build_plan(args.manifest, args.script, args.audio, args.output,
-                          alignment_path=args.alignment, confirm_alignment=args.confirm_alignment,
-                          draft=args.draft, image_root=args.image_root, audio_stream=args.audio_stream,
-                          fps=args.fps, width=args.width, height=args.height)
+        options = {"alignment_path": args.alignment, "confirm_alignment": args.confirm_alignment,
+                   "draft": args.draft, "image_root": args.image_root,
+                   "audio_stream": args.audio_stream, "fps": args.fps,
+                   "width": args.width, "height": args.height}
+        if args.analysis is not None:
+            plan = build_from_analysis(args.analysis, args.audio, args.output,
+                                       confirm_legibility=args.confirm_legibility, **options)
+        else:
+            plan = build_plan(args.manifest, args.script, args.audio, args.output, **options)
     except (TimelineError, OSError) as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         return 2

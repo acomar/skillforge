@@ -1,8 +1,11 @@
 import base64
+import copy
 import importlib.util
 import json
 from pathlib import Path
+import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -51,6 +54,206 @@ class TimelineTests(unittest.TestCase):
         if "alignment_path" not in kwargs and not kwargs.get("draft"):
             kwargs["alignment_path"] = self.align_path
         return MODULE.build_plan(self.manifest_path, self.script_path, self.audio, self.out, **kwargs)
+
+    def analysis_inputs(self, *, root_hint="."):
+        self.inputs()
+        panels = {p["id"]: p for p in self.manifest["pages"][0]["panels"]}
+        self.analysis = {"schema_version": 1, "kind": "manga-hq-editing-analysis",
+                         "manifest": copy.deepcopy(self.manifest), "script": copy.deepcopy(self.script),
+                         "source_fingerprints": {"manifest_sha256": MODULE.semantic_sha256(self.manifest),
+                                                 "script_sha256": MODULE.semantic_sha256(self.script)},
+                         "image_root": root_hint, "image_catalog": [],
+                         "shots": [{"beat_id": beat["id"], "narration": beat["narration"],
+                                    "page_id": beat["page_id"], "panel_id": beat["panel_id"],
+                                    "file": self.image.name, "bbox": panels[beat["panel_id"]]["bbox"]}
+                                   for beat in self.script["beats"]]}
+        self.analysis_path = self.root / "editing-analysis.json"
+        self.save_analysis()
+
+    def save_analysis(self):
+        self.analysis_path.write_text(json.dumps(self.analysis, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def build_analysis(self, **kwargs):
+        kwargs.setdefault("alignment_path", self.align_path)
+        return MODULE.build_from_analysis(self.analysis_path, self.audio, self.out, **kwargs)
+
+    def test_analysis_cli_real_audio_relative_media_and_no_duplicate_sources(self):
+        self.analysis_inputs()
+        # The handoff embeds all evidence; external manifest/script are optional.
+        self.manifest_path.unlink()
+        self.script_path.unlink()
+        original = self.analysis_path.read_bytes()
+        result = subprocess.run([sys.executable, str(SCRIPT), "--analysis", str(self.analysis_path),
+                                 "--audio", str(self.audio), "--alignment", str(self.align_path),
+                                 "--output", str(self.out)], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(self.out.read_text(encoding="utf-8"))
+        self.assertTrue(plan["renderable"])
+        self.assertEqual(plan["total_frames"], 72)
+        self.assertEqual(plan["sources"], {"analysis_sha256": MODULE.sha256(self.analysis_path),
+                                         "manifest_semantic_sha256": MODULE.semantic_sha256(self.manifest),
+                                         "script_semantic_sha256": MODULE.semantic_sha256(self.script)})
+        self.assertEqual((self.out.parent/plan["beats"][0]["image"]).resolve(), self.image.resolve())
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+        self.assertFalse(self.manifest_path.exists())
+        self.assertFalse(self.script_path.exists())
+
+    def test_legacy_cli_still_accepts_manifest_and_script(self):
+        self.inputs()
+        result = subprocess.run([sys.executable, str(SCRIPT), "--manifest", str(self.manifest_path),
+                                 "--script", str(self.script_path), "--audio", str(self.audio),
+                                 "--alignment", str(self.align_path), "--output", str(self.out)],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(self.out.read_text(encoding="utf-8"))["sources"],
+                         {"manifest_sha256": MODULE.sha256(self.manifest_path),
+                          "script_sha256": MODULE.sha256(self.script_path)})
+
+    def test_analysis_rejects_changed_embedded_sources_and_missing_hash(self):
+        self.analysis_inputs()
+        original = copy.deepcopy(self.analysis)
+        for source, field in (("manifest", "reading_direction"), ("script", "reading_direction")):
+            with self.subTest(source=source):
+                self.analysis = copy.deepcopy(original)
+                self.analysis[source][field] = "right-to-left"
+                self.save_analysis()
+                with self.assertRaisesRegex(MODULE.TimelineError, "fingerprint"):
+                    self.build_analysis()
+        self.analysis = original
+        self.analysis["source_fingerprints"].pop("script_sha256")
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "fingerprint"):
+            self.build_analysis()
+
+    def test_analysis_rejects_tampered_or_duplicate_shot_links(self):
+        self.analysis_inputs()
+        original = copy.deepcopy(self.analysis)
+        for field, value in (("file", "other.png"), ("page_id", "P002"), ("panel_id", "Q02"),
+                             ("narration", "Outra narração."), ("bbox", [0, 0, 1, 1])):
+            with self.subTest(field=field):
+                self.analysis = copy.deepcopy(original)
+                self.analysis["shots"][0][field] = value
+                self.save_analysis()
+                with self.assertRaisesRegex(MODULE.TimelineError, f"shot {field}"):
+                    self.build_analysis()
+        self.analysis = copy.deepcopy(original)
+        self.analysis["shots"][1]["beat_id"] = "B1"
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "Shot duplicado"):
+            self.build_analysis()
+        self.analysis["shots"].pop()
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "exatamente um shot"):
+            self.build_analysis()
+
+    def test_analysis_portable_after_project_folder_is_moved(self):
+        self.analysis_inputs(root_hint="../images")
+        handoff = self.root / "handoff"
+        handoff.mkdir()
+        images = self.root / "images"
+        images.mkdir()
+        self.image.rename(images/self.image.name)
+        self.analysis_path.rename(handoff/self.analysis_path.name)
+        moved = self.root / "moved-project"
+        moved.mkdir()
+        shutil.move(str(handoff), str(moved/handoff.name))
+        shutil.move(str(images), str(moved/images.name))
+        self.analysis_path = moved / "handoff/editing-analysis.json"
+        plan = self.build_analysis()
+        self.assertEqual((self.out.parent/plan["beats"][0]["image"]).resolve(),
+                         (moved/images.name/self.image.name).resolve())
+
+    def test_analysis_explicit_image_root_relocation_verifies_checksums(self):
+        self.analysis_inputs(root_hint="missing-folder")
+        relocated = self.root / "relocated-images"
+        relocated.mkdir()
+        shutil.copyfile(self.image, relocated/self.image.name)
+        (relocated/self.image.name).write_bytes(b"a different image")
+        with self.assertRaisesRegex(MODULE.TimelineError, "checksum"):
+            self.build_analysis(image_root=relocated)
+        shutil.copyfile(self.image, relocated/self.image.name)
+        plan = self.build_analysis(image_root=relocated)
+        self.assertEqual((self.out.parent/plan["beats"][0]["image"]).resolve(),
+                         (relocated/self.image.name).resolve())
+
+    def test_analysis_null_root_requires_explicit_override(self):
+        self.analysis_inputs(root_hint=None)
+        with self.assertRaisesRegex(MODULE.TimelineError, "informe --image-root"):
+            self.build_analysis()
+        self.assertTrue(self.build_analysis(image_root=self.root)["renderable"])
+
+    def test_analysis_catalog_search_hints_do_not_change_confirmed_selection(self):
+        self.analysis_inputs()
+        self.analysis["image_catalog"] = [{"page_id": "P002", "file": "missing.png",
+                                          "description": "Perfect semantic match"}]
+        self.analysis["shots"].reverse()
+        self.analysis["shots"][0]["motion"] = {"from_scale": 9, "to_scale": 9}
+        self.save_analysis()
+        plan = self.build_analysis()
+        self.assertEqual([beat["id"] for beat in plan["beats"]], ["B1", "B2"])
+        self.assertEqual(plan["beats"][0]["panel_id"], "Q01")
+        self.assertEqual(plan["beats"][0]["motion"], {"from_scale": 1, "to_scale": 1.8})
+
+    def test_analysis_reuses_evidence_legibility_and_alignment_checks(self):
+        self.analysis_inputs()
+        self.analysis["manifest"]["pages"][0]["reviewed"] = False
+        self.analysis["source_fingerprints"]["manifest_sha256"] = MODULE.semantic_sha256(self.analysis["manifest"])
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "reviewed=true"):
+            self.build_analysis()
+        self.analysis["manifest"]["pages"][0]["reviewed"] = True
+        self.analysis["source_fingerprints"]["manifest_sha256"] = MODULE.semantic_sha256(self.analysis["manifest"])
+        self.save_analysis()
+        self.alignment["confirmed"] = False
+        self.align_path.write_text(json.dumps(self.alignment), encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.TimelineError, "não confirmado"):
+            self.build_analysis()
+
+    def test_analysis_declared_legibility_preserves_source_and_records_effective_hash(self):
+        self.analysis_inputs()
+        for panel in self.analysis["manifest"]["pages"][0]["panels"]:
+            panel.pop("legibility_reviewed")
+        self.analysis["source_fingerprints"]["manifest_sha256"] = MODULE.semantic_sha256(self.analysis["manifest"])
+        self.save_analysis()
+        original = self.analysis_path.read_bytes()
+        with self.assertRaisesRegex(MODULE.TimelineError, "legibility_reviewed"):
+            self.build_analysis()
+        plan = self.build_analysis(confirm_legibility=True)
+        effective = copy.deepcopy(self.script)
+        for beat in effective["beats"]:
+            beat["legibility_reviewed"] = True
+        self.assertTrue(plan["renderable"])
+        self.assertEqual(plan["sources"]["legibility_confirmation"], "declared-after-editorial-review")
+        self.assertEqual(plan["sources"]["script_semantic_sha256"], MODULE.semantic_sha256(self.script))
+        self.assertEqual(plan["sources"]["effective_script_semantic_sha256"], MODULE.semantic_sha256(effective))
+        self.assertEqual(self.analysis_path.read_bytes(), original)
+
+    def test_legibility_confirmation_never_confirms_audio_alignment(self):
+        self.analysis_inputs()
+        self.alignment["confirmed"] = False
+        self.align_path.write_text(json.dumps(self.alignment), encoding="utf-8")
+        with self.assertRaisesRegex(MODULE.TimelineError, "não confirmado"):
+            self.build_analysis(confirm_legibility=True)
+        with self.assertRaisesRegex(MODULE.TimelineError, "Forneça --alignment"):
+            self.build_analysis(confirm_legibility=True, alignment_path=None)
+        result = subprocess.run([sys.executable, str(SCRIPT), "--manifest", str(self.manifest_path),
+                                 "--script", str(self.script_path), "--audio", str(self.audio),
+                                 "--output", str(self.out), "--confirm-legibility"],
+                                capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("--confirm-legibility exige --analysis", result.stderr)
+
+    def test_analysis_rejects_schema_mismatch_and_cli_source_mix(self):
+        self.analysis_inputs()
+        self.analysis["schema_version"] = True
+        self.save_analysis()
+        with self.assertRaisesRegex(MODULE.TimelineError, "schema_version"):
+            self.build_analysis()
+        result = subprocess.run([sys.executable, str(SCRIPT), "--analysis", str(self.analysis_path),
+                                 "--script", str(self.script_path), "--audio", str(self.audio),
+                                 "--output", str(self.out)], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("não combine", result.stderr)
 
     def test_real_wav_frame_contiguous_plan_and_relative_paths(self):
         plan = self.build()

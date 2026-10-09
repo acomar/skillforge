@@ -23,7 +23,13 @@ Use `--recursive` quando as páginas estiverem em subpastas. `--classify arquivo
       "width": 1200,
       "height": 1800,
       "panels": [
-        {"id": "P001-Q01", "bbox": [0.05, 0.05, 0.95, 0.4]}
+        {
+          "id": "P001-Q01",
+          "bbox": [0.05, 0.05, 0.95, 0.4],
+          "description": "Descrição original da ação e dos detalhes realmente visíveis.",
+          "characters": [],
+          "visual_tags": ["detalhe visual confirmado"]
+        }
       ]
     }
   ]
@@ -66,9 +72,9 @@ Este exemplo é apenas sintaxe, não fato de uma obra. Cada beat exige `id`, `na
 
 ```text
 python scripts/story_project.py validate --manifest /projeto/page-manifest.json --script /projeto/script.json
-python scripts/story_project.py build --manifest /projeto/page-manifest.json --script /projeto/script.json --output-dir /projeto/gravar
+python scripts/story_project.py build --manifest /projeto/page-manifest.json --script /projeto/script.json --image-root /projeto/imagens --output-dir /projeto/gravar
 ```
 
-`build` cria `narration.txt` e `validated-script.json`. O validador rejeita referências ausentes, IDs duplicados, caixas inválidas/divergentes, página não narrativa/não revisada e rubricas evidentes na fala. Não inspeciona se uma imagem comprova semanticamente uma frase; faça essa conferência.
+`build` cria `narration.txt`, `validated-script.json`, `editing-analysis.json` e `editing-analysis.md`. A análise inclui roteiro/manifesto, catálogo visual e planos ligados aos arquivos; veja [analise-para-edicao.md](analise-para-edicao.md). O validador rejeita referências ausentes, IDs duplicados, caixas inválidas/divergentes, página não narrativa/não revisada e rubricas evidentes na fala. Não inspeciona se uma imagem comprova semanticamente uma frase; faça essa conferência.
 
 O inventário guarda hashes; se a pasta mudar, atualize a leitura e as evidências. A montagem exige arquivos reais e áudio alinhado. Estimativas de duração do roteiro permanecem estimativas até gravação.

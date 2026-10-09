@@ -8,13 +8,16 @@ not read panels, infer a plot, classify advertisements, or generate narration.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
+import os
 import re
 import struct
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
+from urllib.parse import quote
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".tif", ".tiff"}
 STATUSES = {"narrative", "cover", "advertisement", "editorial"}
@@ -174,6 +177,24 @@ def clean_narration(value: str):
     return not any(re.search(pattern, value) for pattern in patterns)
 
 
+def validate_descriptive_fields(obj, label):
+    """Validate optional reviewed descriptions without inventing image facts."""
+    errors = []
+    for field in ("description", "observed_summary_pt", "summary", "summary_pt"):
+        if field in obj and not isinstance(obj[field], str):
+            errors.append(f"{label}: {field} deve ser texto.")
+    for field in ("characters", "visual_tags"):
+        if field in obj and (not isinstance(obj[field], list)
+                             or any(not isinstance(item, str) for item in obj[field])):
+            errors.append(f"{label}: {field} deve ser lista de textos.")
+    if "editorial_notes" in obj and not (
+            isinstance(obj["editorial_notes"], str)
+            or isinstance(obj["editorial_notes"], list)
+            and all(isinstance(item, str) for item in obj["editorial_notes"])):
+        errors.append(f"{label}: editorial_notes deve ser texto ou lista de textos.")
+    return errors
+
+
 def validate(manifest, script):
     errors = []
     if not isinstance(manifest, dict) or not isinstance(script, dict):
@@ -196,6 +217,7 @@ def validate(manifest, script):
             errors.append("Página sem id válido.")
             continue
         pid = p["id"]
+        errors.extend(validate_descriptive_fields(p, pid))
         if pid in page_map:
             errors.append(f"ID de página duplicado: {pid}.")
         page_map[pid] = p
@@ -214,6 +236,7 @@ def validate(manifest, script):
                 errors.append(f"{pid}: painel sem id válido.")
                 continue
             key = (pid, panel["id"])
+            errors.extend(validate_descriptive_fields(panel, f"{pid}/{panel['id']}"))
             if key in panel_map:
                 errors.append(f"{pid}: ID de painel duplicado: {panel['id']}.")
             panel_map[key] = panel
@@ -230,6 +253,7 @@ def validate(manifest, script):
             errors.append("Beat deve ser objeto.")
             continue
         bid = beat.get("id")
+        errors.extend(validate_descriptive_fields(beat, str(bid)))
         if not isinstance(bid, str) or not bid.strip() or bid in seen:
             errors.append("Beat sem ID único válido.")
         if isinstance(bid, str):
@@ -296,15 +320,175 @@ def write_json(path, obj):
     path.write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def build(manifest, script, output_dir):
+def canonical_sha256(obj):
+    """Fingerprint source JSON independently of indentation or key ordering."""
+    canonical = json.dumps(obj, ensure_ascii=False, sort_keys=True,
+                           separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def reviewed_text(obj, *fields):
+    for field in fields:
+        value = obj.get(field)
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+
+
+def analysis_image_root(image_root, output_dir):
+    if image_root is None:
+        return None
+    root = Path(image_root).resolve()
+    try:
+        return Path(os.path.relpath(root, Path(output_dir).resolve())).as_posix()
+    except ValueError:
+        # Different drive letters on Windows cannot have a relative path.
+        return root.as_posix()
+
+
+def editing_analysis(manifest, script, output_dir, image_root=None):
+    """Export reviewed page/panel facts and an exact beat-to-image lookup.
+
+    This is a mapping export, not image recognition or audio alignment. Keep
+    the full source objects and fingerprints so editors can verify the handoff.
+    """
+    errors = validate(manifest, script)
+    if errors:
+        raise ProjectError("\n".join(errors))
+    catalog, warnings = [], []
+    page_map, panel_map = {}, {}
+    for page in manifest["pages"]:
+        pid = page["id"]
+        entry = {"page_id": pid, "file": page["file"], "status": page["status"],
+                 "reviewed": page["reviewed"],
+                 "summary": reviewed_text(page, "summary", "summary_pt", "description"),
+                 "panels": []}
+        for panel in page["panels"]:
+            item = {"id": panel["id"], "bbox": copy.deepcopy(panel["bbox"]),
+                    "description": reviewed_text(panel, "description", "observed_summary_pt"),
+                    "characters": copy.deepcopy(panel.get("characters", [])),
+                    "visual_tags": copy.deepcopy(panel.get("visual_tags", []))}
+            if not item["description"]:
+                warnings.append(f"{pid}/{panel['id']}: descrição visual ausente; não foi inferida.")
+            entry["panels"].append(item)
+            panel_map[(pid, panel["id"])] = item
+        page_map[pid] = entry
+        catalog.append(entry)
+    shots = []
+    for beat in script["beats"]:
+        pid, qid = beat["page_id"], beat["panel_id"]
+        page, panel = page_map[pid], panel_map[(pid, qid)]
+        shot = {"beat_id": beat["id"], "narration": beat["narration"],
+                "purpose": beat["purpose"], "page_id": pid, "panel_id": qid,
+                "file": page["file"], "bbox": copy.deepcopy(panel["bbox"]),
+                "description": panel["description"] or reviewed_text(beat, "description", "observed_summary_pt"),
+                "characters": copy.deepcopy(beat.get("characters", panel["characters"])),
+                "visual_tags": copy.deepcopy(beat.get("visual_tags", panel["visual_tags"])),
+                "evidence_refs": copy.deepcopy(beat.get("evidence_refs", [{"page_id": pid, "panel_id": qid}])),
+                "editorial_notes": copy.deepcopy(beat.get("editorial_notes", ""))}
+        if "motion" in beat:
+            shot["motion"] = copy.deepcopy(beat["motion"])
+        if not shot["description"]:
+            warnings.append(f"{beat['id']}: descrição visual ausente; consultar a imagem indicada.")
+        shots.append(shot)
+    root_hint = analysis_image_root(image_root, output_dir)
+    if root_hint is None:
+        warnings.append("Raiz das imagens não informada; a edição precisa de --image-root.")
+    return {"schema_version": 1, "kind": "manga-hq-editing-analysis",
+            "manifest": copy.deepcopy(manifest), "script": copy.deepcopy(script),
+            "source_fingerprints": {"manifest_sha256": canonical_sha256(manifest),
+                                    "script_sha256": canonical_sha256(script)},
+            "image_root": root_hint, "image_catalog": catalog, "shots": shots,
+            "notes": "timestamps require supplied audio alignment",
+            "warnings": warnings}
+
+
+def markdown_text(value):
+    return str(value).replace("\\", "\\\\").replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
+def markdown_image_link(analysis, file):
+    root = analysis["image_root"]
+    label = markdown_text(file).replace("[", "\\[").replace("]", "\\]")
+    if root is None:
+        return f"`{file}` (raiz pendente)"
+    target = (Path(root) / Path(file)).as_posix()
+    return f"[{label}](<{quote(target, safe='/:')}>)"
+
+
+def analysis_markdown(analysis):
+    """Readable lookup: ordered shots, excluded pages and searchable panel index."""
+    root = analysis["image_root"]
+    if root is None:
+        root_description = "Raiz das imagens não informada; fornecer `--image-root` na edição."
+    elif Path(root).is_absolute():
+        root_description = f"Raiz das imagens: `{root}` (caminho absoluto; ajustar se o projeto mudar de computador)."
+    else:
+        root_description = f"Raiz das imagens: `{root}` (relativa à pasta desta análise)."
+    lines = ["# Análise de imagens para edição", "",
+             "Este arquivo relaciona o roteiro às páginas e aos painéis já revisados. "
+             "As descrições vêm das fontes fornecidas; o exportador não interpreta imagens.", "",
+             "Os tempos devem vir do alinhamento com o áudio de narração fornecido.", "",
+             root_description, "",
+             "## Roteiro e imagens por beat", ""]
+    for shot in analysis["shots"]:
+        lines.extend([f"### {markdown_text(shot['beat_id'])} — {markdown_text(shot['purpose'])}", "",
+                      shot["narration"], "",
+                      f"- Imagem: {markdown_image_link(analysis, shot['file'])}",
+                      f"- Página/painel: `{shot['page_id']}` / `{shot['panel_id']}`; "
+                      f"bbox normalizada: `{json.dumps(shot['bbox'])}`.",
+                      f"- Descrição: {markdown_text(shot['description']) or 'Não fornecida; conferir a imagem.'}",
+                      f"- Personagens: {markdown_text(', '.join(shot['characters'])) or 'Não informados.'}",
+                      f"- Palavras-chave visuais: {markdown_text(', '.join(shot['visual_tags'])) or 'Não informadas.'}"])
+        refs = ", ".join(f"{ref['page_id']}/{ref['panel_id']}" for ref in shot["evidence_refs"])
+        lines.append(f"- Evidências de apoio: {markdown_text(refs)}.")
+        notes = shot["editorial_notes"]
+        if notes:
+            lines.append(f"- Orientação editorial: {markdown_text('; '.join(notes) if isinstance(notes, list) else notes)}")
+        if "motion" in shot:
+            lines.append(f"- Movimento proposto: `{json.dumps(shot['motion'], ensure_ascii=False)}`.")
+        lines.append("")
+    lines.extend(["## Páginas excluídas do enredo", ""])
+    excluded = [page for page in analysis["image_catalog"] if page["status"] != "narrative"]
+    if not excluded:
+        lines.extend(["Nenhuma página classificada para exclusão.", ""])
+    for page in excluded:
+        lines.append(f"- `{page['page_id']}` — {page['status']}: {markdown_image_link(analysis, page['file'])}"
+                     + (f" — {markdown_text(page['summary'])}" if page["summary"] else ""))
+    lines.extend(["", "## Índice de todas as imagens e painéis", "",
+                  "Use a busca por descrição, personagem, palavra-chave, ID ou nome do arquivo. "
+                  "Páginas excluídas continuam no catálogo, mas não são planos narrativos.", ""])
+    for page in analysis["image_catalog"]:
+        lines.extend([f"### {page['page_id']} — {page['status']}", "",
+                      f"Imagem: {markdown_image_link(analysis, page['file'])}. "
+                      f"Revisada: {'sim' if page['reviewed'] else 'não'}.", ""])
+        if page["summary"]:
+            lines.extend([markdown_text(page["summary"]), ""])
+        for panel in page["panels"]:
+            lines.append(f"- `{panel['id']}`; bbox `{json.dumps(panel['bbox'])}`; "
+                         f"{markdown_text(panel['description']) or 'Descrição não fornecida.'} "
+                         f"Personagens: {markdown_text(', '.join(panel['characters'])) or 'não informados'}. "
+                         f"Palavras-chave: {markdown_text(', '.join(panel['visual_tags'])) or 'não informadas'}.")
+        lines.append("")
+    if analysis["warnings"]:
+        lines.extend(["## Pendências", ""])
+        lines.extend(f"- {markdown_text(warning)}" for warning in analysis["warnings"])
+        lines.append("")
+    return "\n".join(lines)
+
+
+def build(manifest, script, output_dir, *, image_root=None):
     errors = validate(manifest, script)
     if errors:
         raise ProjectError("\n".join(errors))
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
+    analysis = editing_analysis(manifest, script, out, image_root)
     narration = "\n\n".join(b["narration"].strip() for b in script["beats"]) + "\n"
     (out / "narration.txt").write_text(narration, encoding="utf-8")
     write_json(out / "validated-script.json", script)
+    write_json(out / "editing-analysis.json", analysis)
+    (out / "editing-analysis.md").write_text(analysis_markdown(analysis), encoding="utf-8")
     return out / "narration.txt"
 
 
@@ -323,6 +507,8 @@ def main(argv=None):
         cmd.add_argument("--script", required=True, type=Path)
         if name == "build":
             cmd.add_argument("--output-dir", required=True, type=Path)
+            cmd.add_argument("--image-root", type=Path,
+                             help="Pasta base das imagens; padrão: pasta do manifesto.")
     args = parser.parse_args(argv)
     try:
         if args.command == "inventory":
@@ -344,7 +530,10 @@ def main(argv=None):
                 print(f"Roteiro válido: {len(script['beats'])} beats com referências existentes.")
                 print("A validação estrutural não substitui conferência factual das imagens.")
             else:
-                print(f"Narração limpa criada: {build(manifest, script, args.output_dir)}")
+                root = args.image_root if args.image_root is not None else args.manifest.resolve().parent
+                print(f"Narração limpa criada: {build(manifest, script, args.output_dir, image_root=root)}")
+                print(f"Análise para edição criada: {args.output_dir / 'editing-analysis.json'}")
+                print(f"Índice visual legível criado: {args.output_dir / 'editing-analysis.md'}")
     except (ProjectError, OSError) as exc:
         print(f"Erro: {exc}", file=sys.stderr)
         return 2

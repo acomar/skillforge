@@ -4,7 +4,7 @@ As instruções e helpers são implementações originais. O perfil foi derivado
 
 O caso real de roteiro examinou28 imagens de Batman: The Knight#1, com23 páginas narrativas e133 regiões aproximadas. Capa, propagandas e editorial foram classificados separadamente. Um roteiro original de12 beats/297palavras tem duração estimada~120s a148ppm, sem gravação criada.
 
-Validação nesta versão, Windows/Python3.13/FFmpeg8.0.1:
+Validação inicial da versão 0.1.0, Windows/Python3.13/FFmpeg8.0.1:
 
 - Roteiro:15 testes aprovados; inventário/validate/build executados com a pasta real.
 - Timeline:21 testes aprovados, com WAV real, cobertura contínua por frames, intervalos inválidos, referências, hashes, revisão e seleção de faixas.
@@ -16,6 +16,14 @@ Validação nesta versão, Windows/Python3.13/FFmpeg8.0.1:
 Status `experimental`: não houve master narrado completo de12–20min validado editorialmente. Uma prévia visual de21s com três recortes reais de Batman foi renderizada com silêncio e tempos de rascunho para conferir fundo, tinta e movimento; não comprova sincronismo de uma gravação.
 
 Os scripts executam inventário, checagens, montagem de marcas e renderização. Eles não leem imagens semanticamente, escrevem roteiro, transcrevem voz ou fazem forced alignment: essas decisões são executadas pelo agente com ferramentas disponíveis e revisão. Publicação inclui somente instruções, perfis e código; não contém vídeos, áudio do canal, páginas da HQ ou transcrições extensas.
+
+Atualização 0.2.0: o roteiro exporta `editing-analysis.json` e `editing-analysis.md`, com catálogo pesquisável e mapa fala→arquivo→painel→recorte. A edição aceita o JSON diretamente, preserva os objetos de origem e identifica a revisão editorial separadamente do alinhamento do áudio.
+
+- Exportador: 22 testes aprovados, incluindo 7 novos casos de catálogo, dados ausentes, fingerprints, links e mudança de pasta.
+- Editor: 33 testes de timeline e 17 de renderer aprovados; integração exportação→consumo com PNG/WAV passou.
+- Exemplo real: análise local de Batman com 28 páginas, 133 regiões e 12 beats; associação, existência e hashes das imagens conferidos. Não houve nova gravação nem novo master narrado.
+- Revisão independente dos helpers e do contrato não encontrou falha material na associação. Descrições, tags e notas continuam consultivas: a montagem segue a ordem de `script.beats` e não interpreta imagens automaticamente.
+- Estrutura individual e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
 
 Para repetir a partir da raiz do SkillForge:
 

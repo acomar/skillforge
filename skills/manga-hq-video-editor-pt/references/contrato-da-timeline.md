@@ -4,6 +4,8 @@ Python3.11+, FFmpeg e FFprobe no PATH. Todos os JSONs usam UTF-8 e schema_versio
 
 ## Das páginas ao plano
 
+Prefira `--analysis /projeto/entrega/editing-analysis.json` quando receber a análise exportada pelo roteirista: ela inclui roteiro/manifesto, catálogo e mapa de imagens. Não combine `--analysis` com `--manifest`/`--script`. Consulte [analise-para-edicao.md](analise-para-edicao.md) para busca, fingerprints e realocação da pasta. Depois de conferir os recortes/movimentos, `--confirm-legibility` pode registrar essa revisão no caminho `--analysis`; o alinhamento do áudio continua separado.
+
 O manifesto e roteiro usam o contrato de evidências: manifesto com `pages[{id,file,status,reviewed,panels[{id,bbox}]}]`; roteiro com `reading_direction` e `beats[{id,narration,page_id,panel_id}]`. `status` deve ser narrative e `reviewed:true` nas páginas utilizadas. Imagens são paths relativos ao `--image-root`; sem essa opção, o diretório do manifesto é a base. O inventário da skill de roteiro cria paths relativos à pasta inventariada: passe essa pasta explicitamente como image-root.
 
 Antes do builder, confira cada crop e movimento e registre `legibility_reviewed:true` no painel ou beat. `reviewed` de página não implica revisão dos extremos do zoom. `bbox` é normalizado XYXY, não XYWH. Hash de página, quando presente, precisa corresponder ao arquivo atual.
@@ -26,6 +28,12 @@ O exemplo supõe áudio de18s. Cada marca cobre o beat até a entrada do seguint
 
 ```text
 python scripts/build_timeline.py --manifest /projeto/page-manifest.json --script /projeto/script.json --image-root /projeto/imagens --audio /projeto/narracao.wav --alignment /projeto/alignment.json --output /projeto/timeline.json
+```
+
+Ou, com o arquivo de análise e revisão editorial dos recortes já realizada:
+
+```text
+python scripts/build_timeline.py --analysis /projeto/entrega/editing-analysis.json --confirm-legibility --audio /projeto/narracao.wav --alignment /projeto/alignment.json --output /projeto/timeline.json
 ```
 
 Para áudio com várias faixas, acrescente `--audio-stream INDEX` com índice absoluto confirmado. Sem marcas, `--draft` cria tempos estimados por peso de palavras, `readiness:draft` e `renderable:false`. Serve à prévia; exige alinhamento real antes do master. O builder nunca compara automaticamente o conteúdo falado ao texto.

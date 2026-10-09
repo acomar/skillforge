@@ -1,5 +1,8 @@
 import copy
+import contextlib
+import hashlib
 import importlib.util
+import io
 import json
 import struct
 import tempfile
@@ -101,6 +104,142 @@ class StoryProjectTests(unittest.TestCase):
             with self.assertRaises(story.ProjectError):
                 story.build(self.manifest, self.script, directory)
             self.assertEqual(output.read_text(encoding="utf-8"), "Ele encontrou uma pista e decidiu investigar.\n")
+
+    def test_analysis_catalog_keeps_excluded_pages_but_shots_only_use_script(self):
+        panel = self.manifest["pages"][0]["panels"][0]
+        panel.update(description="Detetive em uma rua chuvosa.",
+                     characters=["Detetive"], visual_tags=["chuva", "rua"])
+        self.manifest["pages"][0]["summary"] = "Uma pista aparece."
+        self.manifest["pages"][0]["panels"].append({"id": "P01-Q02", "bbox": [0, 0, 0.1, 0.1],
+                                                    "description": "Uma carta ainda fechada."})
+        self.manifest["pages"][1]["summary_pt"] = "Publicidade fora do enredo."
+        self.script["beats"][0].update(editorial_notes=["Manter a pista visível."],
+                                        motion={"from_scale": 1, "to_scale": 1.8})
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            output = story.build(self.manifest, self.script, directory)
+            analysis = json.loads((output.parent / "editing-analysis.json").read_text(encoding="utf-8"))
+            self.assertEqual(analysis["kind"], "manga-hq-editing-analysis")
+            self.assertEqual([page["page_id"] for page in analysis["image_catalog"]], ["P01", "P02"])
+            self.assertEqual(analysis["image_catalog"][1]["status"], "advertisement")
+            self.assertEqual(len(analysis["shots"]), 1)
+            shot = analysis["shots"][0]
+            self.assertEqual((shot["beat_id"], shot["page_id"], shot["panel_id"], shot["file"]),
+                             ("B01", "P01", "P01-Q01", "1.png"))
+            self.assertEqual(shot["description"], panel["description"])
+            self.assertEqual(shot["bbox"], panel["bbox"])
+            self.assertEqual(shot["characters"], ["Detetive"])
+            self.assertEqual(shot["visual_tags"], ["chuva", "rua"])
+            self.assertEqual(shot["evidence_refs"], [{"page_id": "P01", "panel_id": "P01-Q01"}])
+            self.assertEqual(shot["motion"], self.script["beats"][0]["motion"])
+            self.assertNotIn("start", shot)
+            self.assertNotIn("end", shot)
+            human = (output.parent / "editing-analysis.md").read_text(encoding="utf-8")
+            self.assertIn(self.script["beats"][0]["narration"], human)
+            self.assertIn("Páginas excluídas do enredo", human)
+            self.assertIn("P01-Q02", human)
+            self.assertIn("Uma carta ainda fechada", human)
+            self.assertIn("chuva", human)
+
+    def test_analysis_canonical_fingerprints_and_sources_are_independent_copies(self):
+        original_manifest, original_script = copy.deepcopy(self.manifest), copy.deepcopy(self.script)
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertEqual(self.manifest, original_manifest)
+        self.assertEqual(self.script, original_script)
+        for name, source in (("manifest", self.manifest), ("script", self.script)):
+            expected = hashlib.sha256(json.dumps(source, ensure_ascii=False, sort_keys=True,
+                                                  separators=(",", ":")).encode("utf-8")).hexdigest()
+            self.assertEqual(analysis["source_fingerprints"][name + "_sha256"], expected)
+            self.assertEqual(story.canonical_sha256(dict(reversed(list(source.items())))), expected)
+        analysis["manifest"]["pages"][0]["file"] = "alterado.png"
+        analysis["script"]["beats"][0]["narration"] = "Alterado."
+        analysis["shots"][0]["bbox"][0] = 0
+        analysis["image_catalog"][0]["panels"][0]["bbox"][0] = 0
+        self.assertEqual(self.manifest, original_manifest)
+        self.assertEqual(self.script, original_script)
+
+    def test_missing_visual_descriptions_are_empty_with_honest_warnings(self):
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        self.assertIsNone(analysis["image_root"])
+        shot = analysis["shots"][0]
+        self.assertEqual(shot["description"], "")
+        self.assertEqual(shot["characters"], [])
+        self.assertEqual(shot["visual_tags"], [])
+        self.assertTrue(any("descrição visual ausente" in warning for warning in analysis["warnings"]))
+        self.assertTrue(any("--image-root" in warning for warning in analysis["warnings"]))
+        self.assertEqual(analysis["notes"], "timestamps require supplied audio alignment")
+        self.assertNotIn("motion", shot)
+
+    def test_analysis_image_paths_are_relative_portable_and_markdown_escaped(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            base = Path(directory).resolve()
+            project = base / "projeto original"
+            images = project / "imagens da HQ"
+            images.mkdir(parents=True)
+            filename = "1 cena [chuva]#.png"
+            png(images / filename)
+            self.manifest["pages"][0]["file"] = filename
+            out = project / "export" / "roteiro"
+            story.build(self.manifest, self.script, out, image_root=images)
+            analysis = story.load_json(out / "editing-analysis.json")
+            self.assertEqual(analysis["image_root"], "../../imagens da HQ")
+            self.assertEqual((out / analysis["image_root"] / filename).resolve(), (images / filename).resolve())
+            human = (out / "editing-analysis.md").read_text(encoding="utf-8")
+            self.assertIn("../../imagens%20da%20HQ/1%20cena%20%5Bchuva%5D%23.png", human)
+            self.assertIn(r"1 cena \[chuva\]#.png", human)
+            moved = base / "projeto movido"
+            self.assertTrue(project.resolve().is_relative_to(base))
+            self.assertTrue(moved.resolve().is_relative_to(base))
+            project.rename(moved)
+            moved_out = moved / "export" / "roteiro"
+            self.assertTrue((moved_out / analysis["image_root"] / filename).is_file())
+
+    def test_cli_build_default_root_is_manifest_parent_and_explicit_root_wins(self):
+        with tempfile.TemporaryDirectory(dir=Path(__file__).parent) as directory:
+            base = Path(directory).resolve()
+            source = base / "source"
+            source.mkdir()
+            manifest_path, script_path = source / "manifest.json", base / "script.json"
+            story.write_json(manifest_path, self.manifest)
+            story.write_json(script_path, self.script)
+            for explicit in (False, True):
+                output = base / ("explicit" if explicit else "default")
+                argv = ["build", "--manifest", str(manifest_path), "--script", str(script_path),
+                        "--output-dir", str(output)]
+                expected = source
+                if explicit:
+                    expected = base / "another image folder"
+                    expected.mkdir()
+                    argv.extend(["--image-root", str(expected)])
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(story.main(argv), 0)
+                analysis = story.load_json(output / "editing-analysis.json")
+                self.assertEqual((output / analysis["image_root"]).resolve(), expected)
+
+    def test_descriptive_metadata_requires_text_and_lists_of_text(self):
+        for key, value in [("description", ["palavra"]), ("summary", {}),
+                           ("characters", "Detetive"), ("visual_tags", [1]),
+                           ("editorial_notes", {"instruction": "zoom"})]:
+            with self.subTest(key=key):
+                manifest = copy.deepcopy(self.manifest)
+                manifest["pages"][0]["panels"][0][key] = value
+                self.assertTrue(any(key in error for error in story.validate(manifest, self.script)))
+                with self.assertRaises(story.ProjectError):
+                    story.editing_analysis(manifest, self.script, Path("unused"))
+
+    def test_reviewed_alias_and_beat_metadata_are_preserved_without_guessing(self):
+        panel = self.manifest["pages"][0]["panels"][0]
+        panel["observed_summary_pt"] = "Objeto na mão do personagem."
+        beat = self.script["beats"][0]
+        beat.update(characters=["Nome informado"], visual_tags=["objeto"],
+                    description="Descrição editorial fornecida.", editorial_notes="Mostrar o objeto.")
+        analysis = story.editing_analysis(self.manifest, self.script, Path("unused"))
+        shot = analysis["shots"][0]
+        self.assertEqual(shot["description"], panel["observed_summary_pt"])
+        self.assertEqual(shot["characters"], beat["characters"])
+        self.assertEqual(shot["visual_tags"], beat["visual_tags"])
+        del panel["observed_summary_pt"]
+        self.assertEqual(story.editing_analysis(self.manifest, self.script, Path("unused"))["shots"][0]["description"],
+                         beat["description"])
 
     def test_divergent_aggregate_narration_and_reading_direction(self):
         self.script["narration"] = "Texto que não é o dos beats."

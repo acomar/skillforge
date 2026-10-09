@@ -4,7 +4,7 @@
 
 Faça uma ficha por página: classe, ordem, contexto temporal, personagens reconhecidos, ações mostradas, informações de fala e dúvidas. Na passagem a painéis, confirme sujeito/ação e direção de leitura. Um personagem olhando para fora do quadro não comprova quem está fora dele. Balão sem nome pode exigir contexto de páginas anteriores.
 
-O manifesto é um mapa de montagem, não uma transcrição da obra. Use sínteses próprias. Boxes são XYXY normalizados e se referem à página inteira. Para páginas duplas, registre a imagem completa e regiões sem duplicar a mesma cena em dois arquivos.
+O manifesto é um mapa de montagem, não uma transcrição da obra. Use sínteses próprias. Registre descrições, personagens e palavras de busca visuais em cada painel para alimentar o arquivo de análise da edição; termos como chuva, mãos feridas, livro ou rosto em sombra precisam vir da imagem examinada. Boxes são XYXY normalizados e se referem à página inteira. Para páginas duplas, registre a imagem completa e regiões sem duplicar a mesma cena em dois arquivos.
 
 Um beat reúne uma unidade narrável com imagem que a sustenta. Se o texto muda de sujeito, de tempo ou de ação, divida-o. Um beat curto pode usar uma reação; uma explicação longa pode exigir contexto e detalhe em beats consecutivos. Não use cada página automaticamente como um único plano.
 

@@ -4,7 +4,7 @@ description: Edita vídeos de recap de HQ ou mangá com roteiro, áudio e imagen
 metadata:
   category: content
   status: experimental
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Edição de HQ e mangá no padrão azul
@@ -13,7 +13,7 @@ Monte um vídeo em que a imagem acompanha a fala: painéis isolados em ciano, fu
 
 ## Preparar e sincronizar
 
-Use roteiro, narração, imagens e manifesto de páginas/painéis quando disponível. Se receber somente texto, examine imagens e construa o mapa antes de escolher planos. Não distribua imagens por tempo igual sem relação com a fala.
+Use roteiro, narração, imagens e **`editing-analysis.json`** quando disponível. Esse arquivo traz o catálogo visual e a ligação de cada trecho à imagem, painel e recorte; consulte `editing-analysis.md` para encontrar personagens, ações e detalhes com facilidade. O builder aceita `--analysis` para usar o roteiro e manifesto embutidos. Leia [references/analise-para-edicao.md](references/analise-para-edicao.md). Se receber somente texto, examine imagens e construa o mapa antes de escolher planos. Não distribua imagens por tempo igual sem relação com a fala.
 
 Confira Python 3.11+, FFmpeg e FFprobe. Os helpers usam biblioteca padrão e ferramentas locais. Probe as faixas de áudio, confirme idioma/conteúdo e escolha explicitamente `stream_index`: maior bitrate ou marcação de faixa padrão não garantem a narração correta. Mantenha identidade e voz escolhidas pelo usuário.
 
