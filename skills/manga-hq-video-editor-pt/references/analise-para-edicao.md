@@ -46,3 +46,5 @@ A revisão de leitura do roteiro não certifica o zoom final. Se os recortes/mov
 Se só a pasta mudou, use `--image-root` para realocar as mesmas imagens. Se mudar roteiro, painel, arquivo ou bbox, atualize as fontes e gere nova análise. Não edite o mapa de planos mantendo fingerprints de outra versão.
 
 O exporter não cria timestamps finais, voz, trilha ou câmera a partir do texto. Consulte [historia-completa-e-duracao.md](historia-completa-e-duracao.md) e [identidade-visual-da-obra.md](identidade-visual-da-obra.md) para preencher a cobertura e a direção de arte dos novos projetos. Campos de câmera já escolhidos podem ser preservados, mas a edição decide movimento e sincronismo com o áudio efetivo.
+
+O mapa preserva endpoints e `motion.easing` propostos pelo roteiro. A edição aceita `smoothstep` (padrão) ou `linear`, valida a escolha e mantém endpoints explícitos; na ausência de câmera definida, planeja uma amplitude dinâmica conforme a duração real do beat. Curva e escala não confirmam sincronismo nem substituem a revisão visual.

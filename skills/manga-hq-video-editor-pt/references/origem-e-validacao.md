@@ -41,6 +41,15 @@ Atualização 0.4.0: o padrão passa a contar toda a história fornecida, visand
 - Estrutura das duas skills, recursos relativos, JSON, pacotes e 5 testes das ferramentas do repositório aprovados. O validador global continua com os mesmos 11 diretórios legados sem `SKILL.md` direto.
 - A verificação estrutural da cobertura não certifica fidelidade factual. Não houve master longo narrado revisado nesta atualização; o status continua `experimental`. Os módulos de intro/outro/mix continuam sendo executados pelo agente na composição final, além do renderer de painéis.
 
+Atualização 0.5.0: câmera mais perceptível e suave, atendendo à revisão da prévia. A antiga amostra tinha zoom de apenas1↔1.12 em6–7s; ela não representava o default anterior do builder1↔1.8. O novo default usa1↔1.25–1.50 conforme a duração alinhada, com `smoothstep`, preservando endpoints explícitos e a duração do áudio. Fades novos começam em0.25s, mantendo os explícitos.
+
+- Builder: 57 testes aprovados; integração real do exportador→análise→timeline confirma endpoints, easings, fontes/fingerprints intactos e duração do áudio. O helper de roteiro não foi alterado nesta versão.
+- Renderer1.2.0: 31 testes aprovados, com 91 frames sintéticos consecutivos para centroide/progressão/alpha/endpoints/easing. Na fixture examinada, a oscilação do centro passou de1.46/1.45px para0.36/0.41px; esses números não são uma medida universal de qualquer vídeo. O fallback de planos diretos usa a mesma amplitude por duração do builder, preservando movimentos explícitos.
+- O zoom trabalha em resolução intermediária ampliada e `gbrap`. Fator4× em960×540 e2× em1920×1080; limite3840 por eixo/~8.3MP, portanto1× emUHD. A suavidade em resoluções maiores exige revisão específica. Fundo inteiro/dividido produziu61 frames RGBA idênticos, sem reiniciar o movimento global; dithering da vinheta foi desativado.
+- Alteração de easing invalida apenas o segmento correspondente; a retomada reutiliza os demais. Fontes, hashes, prontidão e faixa de áudio continuam protegidos.
+- Nova amostra de Batman:18.018s,960×540,540frames, silêncio, três cenas de6s com amplitude/foco revisados. Decodificação completa aprovada e frames selecionados inspecionados; esta prévia não comprova um master narrado de10–30min.
+- Estrutura individual, referências/pacotes e5 testes das ferramentas do repositório aprovados. A validação global continua com os mesmos11 diretórios legados sem `SKILL.md` direto. Status `experimental` preservado.
+
 Para repetir a partir da raiz do SkillForge:
 
 ```text

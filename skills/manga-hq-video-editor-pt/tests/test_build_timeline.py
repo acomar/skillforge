@@ -202,7 +202,8 @@ class TimelineTests(unittest.TestCase):
         plan = self.build_analysis()
         self.assertEqual([beat["id"] for beat in plan["beats"]], ["B1", "B2"])
         self.assertEqual(plan["beats"][0]["panel_id"], "Q01")
-        self.assertEqual(plan["beats"][0]["motion"], {"from_scale": 1, "to_scale": 1.8})
+        self.assertEqual(plan["beats"][0]["motion"], {"from_scale": 1, "to_scale": 1.25,
+                                                       "easing": "smoothstep"})
 
     def test_analysis_reuses_evidence_legibility_and_alignment_checks(self):
         self.analysis_inputs()
@@ -381,8 +382,10 @@ class TimelineTests(unittest.TestCase):
         self.assertEqual(first["start_frame"], 0)
         self.assertEqual(first["end_frame"], last["start_frame"])
         self.assertEqual(last["end_frame"], 72)
-        self.assertEqual(first["motion"], {"from_scale": 1, "to_scale": 1.8})
-        self.assertEqual(last["motion"], {"from_scale": 1.8, "to_scale": 1})
+        self.assertEqual(first["motion"], {"from_scale": 1, "to_scale": 1.25,
+                                            "easing": "smoothstep"})
+        self.assertEqual(last["motion"], {"from_scale": 1.25, "to_scale": 1,
+                                           "easing": "smoothstep"})
         self.assertEqual((self.out.parent/first["image"]).resolve(), self.image.resolve())
         self.assertEqual((self.out.parent/plan["audio"]["file"]).resolve(), self.audio.resolve())
         self.assertEqual(plan["audio"]["stream_index"], 0)
@@ -391,6 +394,66 @@ class TimelineTests(unittest.TestCase):
         self.script["beats"][0]["motion"] = {"from_scale": 1, "to_scale": 3}
         with self.assertRaisesRegex(MODULE.TimelineError, "2.5"):
             self.build()
+
+    def test_default_motion_tracks_aligned_shot_duration_without_extending_audio(self):
+        with wave.open(str(self.audio), "wb") as handle:
+            handle.setnchannels(1)
+            handle.setsampwidth(2)
+            handle.setframerate(16000)
+            handle.writeframes(b"\x00\x00" * 480000)
+        self.script["beats"].append({"id": "B3", "narration": "Ele toma uma decisão.",
+                                     "page_id": "P001", "panel_id": "Q01"})
+        self.alignment["beats"] = [{"id": "B1", "start": 0, "end": 2},
+                                   {"id": "B2", "start": 2, "end": 10},
+                                   {"id": "B3", "start": 10, "end": 30}]
+        plan = self.build()
+        short, medium, long = [beat["motion"] for beat in plan["beats"]]
+        self.assertEqual((short["from_scale"], short["to_scale"]), (1, 1.25))
+        self.assertEqual(medium["to_scale"], 1)
+        self.assertGreater(medium["from_scale"], 1.4)
+        self.assertLessEqual(medium["from_scale"], 1.5)
+        self.assertEqual((long["from_scale"], long["to_scale"]), (1, 1.5))
+        self.assertTrue(all(motion["easing"] == "smoothstep" for motion in (short, medium, long)))
+        self.assertTrue(all(beat["transition_seconds"] == .25 for beat in plan["beats"]))
+        self.assertTrue(plan["renderable"])
+        self.assertEqual(plan["audio"]["duration_seconds"], 30)
+        self.assertEqual(plan["audio"]["sha256"], MODULE.sha256(self.audio))
+        self.assertGreaterEqual(plan["duration_seconds"], 30)
+        self.assertLess(plan["duration_seconds"]-30, 1001/30000)
+        self.assertEqual(plan["beats"][-1]["end_frame"], plan["total_frames"])
+        for first, following in zip(plan["beats"], plan["beats"][1:]):
+            self.assertEqual(first["end_frame"], following["start_frame"])
+
+    def test_motion_easing_invalid_values_rejected_without_creating_timeline(self):
+        for easing in (None, [], {}, True, 1, "", "easeInOut", "Smoothstep"):
+            with self.subTest(easing=easing):
+                self.script["beats"][0]["motion"] = {"from_scale": 1, "to_scale": 1.4,
+                                                       "easing": easing}
+                with self.assertRaisesRegex(MODULE.TimelineError, "motion.easing"):
+                    self.build()
+                self.assertFalse(self.out.exists())
+
+    def test_analysis_cli_preserves_reviewed_easing_endpoints_and_source_fingerprints(self):
+        movements = [{"from_scale": 1, "to_scale": 1.8, "easing": "linear"},
+                     {"from_scale": 1.2, "to_scale": 1.2, "easing": "smoothstep"}]
+        for beat, motion in zip(self.script["beats"], movements):
+            beat["motion"] = copy.deepcopy(motion)
+        self.analysis_inputs()
+        original_analysis = self.analysis_path.read_bytes()
+        original_script = self.script_path.read_bytes()
+        result = subprocess.run([sys.executable, str(SCRIPT), "--analysis", str(self.analysis_path),
+                                 "--audio", str(self.audio), "--alignment", str(self.align_path),
+                                 "--output", str(self.out)], capture_output=True, text=True, encoding="utf-8")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        plan = json.loads(self.out.read_text(encoding="utf-8"))
+        self.assertEqual([beat["motion"] for beat in plan["beats"]], movements)
+        self.assertEqual(plan["sources"]["script_semantic_sha256"], MODULE.semantic_sha256(self.script))
+        self.assertEqual(plan["audio"]["sha256"], MODULE.sha256(self.audio))
+        self.assertEqual(plan["total_frames"], 72)
+        self.assertTrue(plan["alignment"]["confirmed"])
+        self.assertTrue(plan["renderable"])
+        self.assertEqual(self.analysis_path.read_bytes(), original_analysis)
+        self.assertEqual(self.script_path.read_bytes(), original_script)
 
     def test_unconfirmed_alignment_rejected(self):
         self.alignment["confirmed"] = False
@@ -439,6 +502,7 @@ class TimelineTests(unittest.TestCase):
         self.assertFalse(plan["renderable"])
         self.assertEqual(plan["alignment"]["method"], "estimated-word-count")
         self.assertFalse(plan["alignment"]["confirmed"])
+        self.assertTrue(all(beat["motion"]["easing"] == "smoothstep" for beat in plan["beats"]))
         self.assertEqual(plan["beats"][0]["end_frame"], plan["beats"][1]["start_frame"])
         self.assertEqual(plan["beats"][-1]["end_frame"], plan["total_frames"])
 
@@ -522,11 +586,14 @@ class TimelineTests(unittest.TestCase):
             self.assertEqual(MODULE.probe_audio(self.audio, 2)["stream_index"], 2)
 
     def test_explicit_color_and_motion_preserved(self):
-        self.script["beats"][0].update(color_mode="original", motion={"from_scale": 1, "to_scale": 1.2}, focal_point=[.25, .5])
+        self.script["beats"][0].update(color_mode="original", motion={"from_scale": 1, "to_scale": 1.2},
+                                        focal_point=[.25, .5], transition_seconds=.1)
         plan = self.build()
         self.assertEqual(plan["beats"][0]["color_mode"], "original")
-        self.assertEqual(plan["beats"][0]["motion"]["to_scale"], 1.2)
+        self.assertEqual(plan["beats"][0]["motion"], {"from_scale": 1, "to_scale": 1.2,
+                                                       "easing": "smoothstep"})
         self.assertEqual(plan["beats"][0]["focal_point"], [.25, .5])
+        self.assertEqual(plan["beats"][0]["transition_seconds"], .1)
 
     def visual_script(self, *, file=None):
         self.script["visual_identity"] = {

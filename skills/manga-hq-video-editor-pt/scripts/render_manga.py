@@ -21,10 +21,13 @@ import subprocess
 import sys
 from typing import Any
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 PROFILE = "comic-identity-longform-v1"
 SUPPORTED_PROFILES = {PROFILE, "manga-blue-longform-v1"}
 IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tif", ".tiff"}
+MOTION_EASING = {"smoothstep", "linear"}
+MOTION_MAX_INTERMEDIATE_PIXELS = 3840 * 2160
+MOTION_MAX_INTERMEDIATE_AXIS = 3840
 
 
 class RenderError(Exception):
@@ -284,21 +287,28 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
         crop_height = min(facts["height"], math.ceil(y2 * facts["height"])) - crop_y
         if min(crop_width, crop_height) < 2:
             raise RenderError(f"{identifier}.bbox produces an empty or too-small crop")
-        motion = item.get("motion", {"from_scale": 1, "to_scale": 1.8})
+        beat_seconds = (end_frame - previous_frame) * frame_seconds
+        # Match the builder for previously unplanned shots. Explicit and
+        # partially specified legacy motion objects keep their old defaults.
+        default_scale = 1 + min(.5, max(.25, beat_seconds * .06))
+        motion = item.get("motion", {"from_scale": 1 if index % 2 == 0 else default_scale,
+                                   "to_scale": default_scale if index % 2 == 0 else 1})
         if not isinstance(motion, dict):
             raise RenderError(f"{identifier}.motion must be an object")
         from_scale = number(motion.get("from_scale", 1), f"{identifier}.motion.from_scale")
         to_scale = number(motion.get("to_scale", 1.8), f"{identifier}.motion.to_scale")
         if not (1 <= from_scale <= 2.5 and 1 <= to_scale <= 2.5):
             raise RenderError(f"{identifier} motion scales must be between 1 and 2.5")
+        easing = motion.get("easing", "smoothstep")
+        if not isinstance(easing, str) or easing not in MOTION_EASING:
+            raise RenderError(f"{identifier}.motion.easing must be smoothstep or linear")
         focal = item.get("focal_point", [.5, .5])
         if not isinstance(focal, list) or len(focal) != 2:
             raise RenderError(f"{identifier}.focal_point must be normalized [x,y]")
         focal = [number(v, f"{identifier}.focal_point") for v in focal]
         if any(v < 0 or v > 1 for v in focal):
             raise RenderError(f"{identifier}.focal_point must be within 0..1")
-        beat_seconds = (end_frame - previous_frame) * frame_seconds
-        transition = number(item.get("transition_seconds", min(.4, beat_seconds / 4)),
+        transition = number(item.get("transition_seconds", min(.25, beat_seconds / 4)),
                             f"{identifier}.transition_seconds")
         if not (0 <= transition <= 1 and transition * 2 <= beat_seconds + 1e-7):
             raise RenderError(f"{identifier} fade must be at most 1 second and half the beat duration")
@@ -315,7 +325,7 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
         beats.append({"id": identifier, "start": snapped_start, "end": snapped_end,
                       "frames": end_frame-previous_frame, "image": str(image_file),
                       "image_sha256": facts["sha256"], "crop": [crop_x, crop_y, crop_width, crop_height],
-                      "motion": {"from_scale": from_scale, "to_scale": to_scale},
+                      "motion": {"from_scale": from_scale, "to_scale": to_scale, "easing": easing},
                       "focal_point": focal, "transition_seconds": transition, "color_mode": mode,
                       "legibility_reviewed": item.get("legibility_reviewed") is True})
         previous_raw_end, previous_frame = end, end_frame
@@ -329,11 +339,17 @@ def validate_plan(plan_path: Path, tools: dict[str, str], timeout: float = 900,
                       "start_time": stream.get("start_time"), "sha256": audio_hash},
             "frames": target_frames, "duration": target_frames * frame_seconds,
             "beats": beats, "background": background,
+            "motion_rendering": {"strategy": "supersampled-gbrap-zoompan",
+                                 "input_supersampling": motion_supersampling(width, height),
+                                 "max_intermediate_pixels": MOTION_MAX_INTERMEDIATE_PIXELS,
+                                 "max_intermediate_axis": MOTION_MAX_INTERMEDIATE_AXIS,
+                                 "default_easing": "smoothstep"},
             "visual_identity": visual_identity,
             "timing_adjustments": adjustments, "preview": preview is not None,
             "limitations": ["Image legibility and focal point are human/editorial review decisions.",
                             "Background assets and palette require editorial review; the quiet ambient fallback is not a complete identity design.",
-                            "Linear panel zoom and slow background drift are original motion; source keyframes are not recovered.",
+                            "Panel easing and continuous background drift are original motion; source keyframes are not recovered.",
+                            "Supersampling reduces integer crop stepping, not source-image resolution limits; UHD and larger outputs use factor 1 under the intermediate-canvas memory cap.",
                             "Fades occur inside each beat; adjacent beats do not overlap.",
                             "Only the selected supplied audio stream is used. No music or speech is generated."]}
 
@@ -356,33 +372,60 @@ def background_filter(width: int, height: int, fps: str, duration: float, offset
             f"geq=r='{channels[0]}':g='{channels[1]}':b='{channels[2]}'")
 
 
+def motion_supersampling(width: int, height: int) -> int:
+    """Reduce zoompan's integer crop quantization with a bounded input canvas.
+
+    The usual 960x540 preview gets 4x and 1920x1080 gets 2x. UHD uses 1x;
+    already-large canvases are not enlarged further. This is an interpolation
+    working grid, not a claim that the source contains additional detail.
+    """
+    for factor in range(4, 1, -1):
+        if (width * height * factor * factor <= MOTION_MAX_INTERMEDIATE_PIXELS
+                and max(width, height) * factor <= MOTION_MAX_INTERMEDIATE_AXIS):
+            return factor
+    return 1
+
+
+def motion_progress(frames: int, easing: str) -> str:
+    """An absolute frame expression reaches both endpoints without accumulation."""
+    progress = f"(on/{max(1, frames-1)})"
+    if easing == "smoothstep":
+        return f"({progress}*{progress}*(3-2*{progress}))"
+    return progress
+
+
 def image_background_filter(background: dict[str, Any], canvas: dict[str, Any],
                             beat: dict[str, Any], total_frames: int) -> str:
     """Cover the canvas with a dimmed image and keep its zoom continuous across cuts."""
     width, height = canvas["width"], canvas["height"]
+    factor = motion_supersampling(width, height)
+    intermediate_width, intermediate_height = width * factor, height * factor
     start, end = background["zoom_from"], background["zoom_to"]
     frame_offset = round(beat["start"] * float(Fraction(canvas["fps"])))
     progress = f"(on+{frame_offset})/{max(1,total_frames-1)}"
     zoom = f"{start:.9f}+({end-start:.9f})*{progress}"
-    return (f"scale={width}:{height}:force_original_aspect_ratio=increase:flags=lanczos,"
-            f"crop={width}:{height},setsar=1,"
+    return (f"format=gbrap,scale={intermediate_width}:{intermediate_height}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={intermediate_width}:{intermediate_height}:exact=1,setsar=1,format=gbrap,"
             f"zoompan=z='{zoom}':x='iw/2-iw/(2*zoom)':y='ih/2-ih/(2*zoom)':"
             f"d={beat['frames']}:s={width}x{height}:fps={canvas['fps']},"
             f"eq=brightness=-{background['darkness']:.9f}:saturation=0.85,"
-            "vignette=PI/5:mode=forward,format=rgba,setsar=1,setpts=PTS-STARTPTS")
+            "vignette=PI/5:mode=forward:dither=0,format=rgba,setsar=1,setpts=PTS-STARTPTS")
 
 
 def panel_filter(beat: dict[str, Any], canvas: dict[str, Any]) -> str:
     width, height = canvas["width"], canvas["height"]
+    factor = motion_supersampling(width, height)
+    intermediate_width, intermediate_height = width * factor, height * factor
     crop_x, crop_y, crop_width, crop_height = beat["crop"]
     fitting = min(width * .90 / crop_width, height * .90 / crop_height)
     fitted_width = max(2, min(width, round(crop_width * fitting / 2) * 2))
     fitted_height = max(2, min(height, round(crop_height * fitting / 2) * 2))
     frames = beat["frames"]
     from_scale, to_scale = beat["motion"]["from_scale"], beat["motion"]["to_scale"]
-    zoom = f"{from_scale:.9f}+({to_scale-from_scale:.9f})*on/{max(1,frames-1)}"
-    focal_x = (width-fitted_width)/2 + fitted_width*beat["focal_point"][0]
-    focal_y = (height-fitted_height)/2 + fitted_height*beat["focal_point"][1]
+    zoom = (f"{from_scale:.9f}+({to_scale-from_scale:.9f})*"
+            + motion_progress(frames, beat["motion"].get("easing", "smoothstep")))
+    focal_x = ((width-fitted_width)/2 + fitted_width*beat["focal_point"][0]) * factor
+    focal_y = ((height-fitted_height)/2 + fitted_height*beat["focal_point"][1]) * factor
     x = f"max(0,min(iw-iw/zoom,{focal_x:.9f}-iw/(2*zoom)))"
     y = f"max(0,min(ih-ih/zoom,{focal_y:.9f}-ih/(2*zoom)))"
     filters = ["format=rgba", f"crop={crop_width}:{crop_height}:{crop_x}:{crop_y}:exact=1"]
@@ -390,8 +433,9 @@ def panel_filter(beat: dict[str, Any], canvas: dict[str, Any]) -> str:
         gray = ("colorchannelmixer=rr=.2126:rg=.7152:rb=.0722:gr=.2126:gg=.7152:gb=.0722:"
                 "br=.2126:bg=.7152:bb=.0722")
         filters.extend([gray, "lutrgb=r=val*80/255:g=val*174/255:b=val"])
-    filters.extend([f"scale={fitted_width}:{fitted_height}:flags=lanczos",
-                    f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000",
+    filters.extend([f"scale={fitted_width * factor}:{fitted_height * factor}:flags=lanczos",
+                    f"pad={intermediate_width}:{intermediate_height}:(ow-iw)/2:(oh-ih)/2:color=0x00000000",
+                    "format=gbrap",
                     f"zoompan=z='{zoom}':x='{x}':y='{y}':d={frames}:s={width}x{height}:fps={canvas['fps']}",
                     "format=rgba", "setsar=1", "setpts=PTS-STARTPTS"])
     fade = beat["transition_seconds"]

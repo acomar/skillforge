@@ -44,6 +44,23 @@ def audio(path, hz):
                                   for i in range(48000*6)))
 
 
+def motion_markers(path):
+    """Opaque colored markers on transparency make decoded camera drift measurable."""
+    width, height = 1200, 720
+    def chunk(kind, payload):
+        return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind+payload)&0xffffffff)
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)
+        for x in range(width):
+            marker = next((color for center, color in ((300,(255,0,0,255)), (600,(0,255,0,255)),
+                                                       (900,(0,0,255,255)))
+                           if center-10 <= x < center+10 and 330 <= y < 390), (0,0,0,0))
+            raw.extend(marker)
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(bytes(raw))) + chunk(b"IEND", b""))
+
+
 @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("ffprobe"), "FFmpeg/FFprobe required")
 class RendererTests(unittest.TestCase):
     @classmethod
@@ -177,6 +194,129 @@ class RendererTests(unittest.TestCase):
     def test_motion_nan_is_rejected(self):
         self.reject(lambda p:p["beats"][0]["motion"].update(to_scale=float("nan")),"finite")
 
+    def test_motion_easing_is_validated_and_defaults_to_smoothstep(self):
+        data = copy.deepcopy(self.plan)
+        data["beats"][0].pop("transition_seconds")
+        data["beats"][1]["motion"]["easing"] = "linear"
+        validated = renderer.validate_plan(self.save(data), self.tools)
+        self.assertEqual(validated["beats"][0]["motion"]["easing"], "smoothstep")
+        self.assertEqual(validated["beats"][1]["motion"]["easing"], "linear")
+        self.assertEqual(validated["beats"][0]["transition_seconds"], .25)
+        self.assertEqual(validated["beats"][1]["transition_seconds"], .2)
+        for invalid in ("bounce", True, None, []):
+            self.reject(lambda p:p["beats"][0]["motion"].update(easing=invalid), "smoothstep or linear")
+
+    def test_motion_working_grid_is_bounded_and_reported(self):
+        for dimensions, expected in (((960,540),4), ((1920,1080),2), ((1080,1920),2),
+                                     ((3840,2160),1), ((7680,4320),1)):
+            self.assertEqual(renderer.motion_supersampling(*dimensions), expected)
+        validated = renderer.validate_plan(self.save(self.plan), self.tools, preview=(960,540))
+        self.assertEqual(validated["motion_rendering"]["input_supersampling"],4)
+        self.assertEqual(validated["renderer_version"], "1.2.0")
+
+    def test_unplanned_motion_uses_snapped_duration_and_alternates_without_retiming(self):
+        data=copy.deepcopy(self.plan)
+        data["beats"][0]["end"]=1.03
+        data["beats"][1]["start"]=1.03
+        for beat in data["beats"]:
+            beat.pop("motion")
+        validated=renderer.validate_plan(self.save(data),self.tools)
+        first,second=validated["beats"]
+        self.assertEqual(first["motion"],{"from_scale":1,"to_scale":1.25,"easing":"smoothstep"})
+        self.assertEqual(second["motion"],{"from_scale":1.3,"to_scale":1,"easing":"smoothstep"})
+        self.assertEqual([first["frames"],second["frames"]],[15,75])
+        self.assertEqual(validated["frames"],90)
+        self.assertEqual(validated["duration"],6)
+        self.assertEqual(validated["audio"]["stream_index"],1)
+        self.assertEqual(validated["audio"]["sha256"],renderer.file_hash(self.root/"faixas distintas.mka"))
+        # Partial objects have long supported independent endpoint defaults.
+        # This correction must not silently reinterpret a reviewed endpoint.
+        data["beats"][0]["motion"]={"from_scale":1.2}
+        data["beats"][1]["motion"]={"to_scale":1.4}
+        partial=renderer.validate_plan(self.save(data),self.tools)
+        self.assertEqual(partial["beats"][0]["motion"]["to_scale"],1.8)
+        self.assertEqual(partial["beats"][0]["motion"]["from_scale"],1.2)
+        self.assertEqual(partial["beats"][1]["motion"]["from_scale"],1)
+        self.assertEqual(partial["beats"][1]["motion"]["to_scale"],1.4)
+
+    def motion_frames(self, path, beat, canvas):
+        raw = subprocess.run(["ffmpeg","-v","error","-filter_threads","1","-i",str(path),
+                              "-vf",renderer.panel_filter(beat,canvas),"-frames:v",str(beat["frames"]),
+                              "-pix_fmt","rgba","-f","rawvideo","-"],capture_output=True,check=True).stdout
+        frame_size = canvas["width"]*canvas["height"]*4
+        self.assertEqual(len(raw),frame_size*beat["frames"])
+        return [raw[index:index+frame_size] for index in range(0,len(raw),frame_size)]
+
+    @staticmethod
+    def marker_centroid(frame, width, channel):
+        weight_sum = x_sum = y_sum = 0
+        for pixel in range(len(frame)//4):
+            rgba=frame[pixel*4:pixel*4+4]
+            weight=max(0,rgba[channel]-max(rgba[(channel+1)%3],rgba[(channel+2)%3]))*rgba[3]
+            weight_sum+=weight
+            x_sum+=(pixel%width)*weight
+            y_sum+=(pixel//width)*weight
+        if not weight_sum:
+            raise AssertionError("Rendered marker is missing")
+        return x_sum/weight_sum, y_sum/weight_sum
+
+    def test_decoded_zoom_is_smooth_monotonic_and_keeps_alpha_and_endpoints(self):
+        image=self.root/"motion markers.png"
+        motion_markers(image)
+        canvas={"width":320,"height":180,"fps":"30/1"}
+        beat={"crop":[0,0,1200,720],"frames":91,"start":0,"end":91/30,
+              "motion":{"from_scale":1,"to_scale":1.45,"easing":"smoothstep"},
+              "focal_point":[.5,.5],"transition_seconds":0,"color_mode":"original"}
+        frames=self.motion_frames(image,beat,canvas)
+        red=[self.marker_centroid(frame,320,0)[0] for frame in frames]
+        green=[self.marker_centroid(frame,320,1) for frame in frames]
+        self.assertLess(red[-1],red[0]-25)
+        self.assertLess(max(point[0] for point in green)-min(point[0] for point in green),.5)
+        self.assertLess(max(point[1] for point in green)-min(point[1] for point in green),.5)
+        self.assertTrue(all(b-a<=.15 for a,b in zip(red,red[1:])))
+        self.assertGreater(red[40]-red[50],4*(red[0]-red[10]))
+        self.assertGreater(red[40]-red[50],4*(red[80]-red[90]))
+        # Transparent surroundings survive camera resampling; no opaque black
+        # canvas may replace the project's visible background.
+        self.assertTrue(all(frame[3]==0 for frame in frames))
+        self.assertGreater(sum(frames[45][index]>0 for index in range(3,len(frames[45]),4)),100)
+        linear=copy.deepcopy(beat)
+        linear["motion"]["easing"]="linear"
+        linear_frames=self.motion_frames(image,linear,canvas)
+        self.assertEqual(frames[0],linear_frames[0])
+        self.assertEqual(frames[-1],linear_frames[-1])
+        self.assertGreater(red[20]-self.marker_centroid(linear_frames[20],320,0)[0],2)
+        reverse=copy.deepcopy(beat)
+        reverse["motion"].update(from_scale=1.45,to_scale=1)
+        reverse_frames=self.motion_frames(image,reverse,canvas)
+        self.assertEqual(frames[-1],reverse_frames[0])
+        self.assertEqual(frames[0],reverse_frames[-1])
+        # A real coarse-canvas render exhibits the integer crop wobble this
+        # change addresses. Oversampling must reduce measured center drift,
+        # rather than merely producing a valid stream or a different filter.
+        with mock.patch.object(renderer,"motion_supersampling",return_value=1):
+            coarse=self.motion_frames(image,beat,canvas)
+        coarse_green=[self.marker_centroid(frame,320,1) for frame in coarse]
+        for axis in (0,1):
+            fine_range=max(point[axis] for point in green)-min(point[axis] for point in green)
+            coarse_range=max(point[axis] for point in coarse_green)-min(point[axis] for point in coarse_green)
+            self.assertLess(fine_range,coarse_range/2)
+
+    def test_image_background_zoom_is_continuous_across_cut(self):
+        canvas={"width":320,"height":180,"fps":"30/1"}
+        background={"mode":"image","zoom_from":1,"zoom_to":1.06,"darkness":0}
+        def decode(start,count):
+            beat={"start":start,"frames":count}
+            raw=subprocess.run(["ffmpeg","-v","error","-filter_threads","1","-i",str(self.background),
+                                "-vf",renderer.image_background_filter(background,canvas,beat,61),
+                                "-frames:v",str(count),"-pix_fmt","rgba","-f","rawvideo","-"],
+                               capture_output=True,check=True).stdout
+            self.assertEqual(len(raw),count*320*180*4)
+            return raw
+        full=decode(0,61)
+        split=decode(0,30)+decode(1,31)
+        self.assertEqual(full,split)
+
     def test_unreviewed_image_is_rejected_for_master(self):
         self.reject(lambda p:p["beats"][0].update(legibility_reviewed=False),"legibility_reviewed")
 
@@ -298,6 +438,13 @@ class RendererTests(unittest.TestCase):
         self.assertEqual(third["reused_segments"],1)
         self.assertNotEqual(third["validation"]["sha256"],first["validation"]["sha256"])
         png(self.image1,220,300)
+        changed_easing=copy.deepcopy(self.plan)
+        changed_easing["beats"][0]["motion"]["easing"]="linear"
+        easing_path=self.save(changed_easing,"pilot.json")
+        fourth=renderer.render(easing_path,self.root/"piloto movimento linear.mp4",work,None,1,180,True)
+        self.assertEqual(fourth["rendered_segments"],1)
+        self.assertEqual(fourth["reused_segments"],1)
+        self.assertNotEqual(fourth["validation"]["sha256"],first["validation"]["sha256"])
 
 
 if __name__=="__main__":

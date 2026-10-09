@@ -4,7 +4,7 @@ description: Edita a história completa de uma HQ ou mangá, em geral 10–30 mi
 metadata:
   category: content
   status: experimental
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Edição narrativa com a identidade da obra
@@ -30,7 +30,7 @@ O contrato está em [references/contrato-da-timeline.md](references/contrato-da-
 
 - Base medida: 1920×1080, 16:9, 30000/1001 fps. Vertical é adaptação e exige recompor recortes.
 - Preserve cor, preto e branco e textura originais dos painéis por padrão. Isole quadros conforme a fala e preserve sua proporção. Ciano é tratamento opcional, escolhido para a identidade específica ou por pedido; não aplique a mesma coloração a todas as obras.
-- Alterne zoom de entrada/saída conforme o foco. Uma amostra cresce cerca de 2× em 9 segundos; use alcance amplo quando preservar a ação, reduzindo-o quando rosto/balão exigir leitura. Crop intencional pode ocorrer, sem cortar o elemento que sustenta a fala.
+- Dê movimento perceptível aos quadros, alternando aproximação e afastamento com aceleração/desaceleração suaves. Use inicialmente cerca de 1↔1.25–1.50, ajustando à duração e ao foco; ampliações maiores servem a detalhes ou impacto quando mantiverem a evidência visível. Escolha `motion.easing:smoothstep` por padrão. Confira frames consecutivos em reprodução: não aceite pequenos saltos, tremor ou bordas que oscilam. O renderer trabalha em resolução intermediária maior para reduzir esses degraus; a documentação registra limites em resoluções muito altas.
 - Crie fundo original por obra, com paleta, textura, iluminação e atmosfera extraídas das páginas. Use uma imagem de fundo própria com movimento lento e baixa distração; o painel narrativo deve dominar. Sem círculos, paralelogramos ou ornamentos genéricos flutuantes. Fundo ambient discreto é alternativa técnica; não substitui a direção de arte específica. Use fades para revelar esse ambiente e preserve proporção/foco.
 - Produza gancho, intro/vinheta e encerramento coerentes com a mesma identidade: tipografia, textura e acentos visuais discretos escolhidos para a obra. Use a identidade do projeto ou título neutro. O outro mantém ritmo mais rápido; partículas/clarões só entram quando servirem ao clima. Shorts exigem pedido explícito.
 - Não acrescente legendas narrativas por padrão: ausentes nas amostras examinadas. Balões da fonte continuam na imagem. Legendas pedidas são adaptação e precisam de conferência.
@@ -41,7 +41,7 @@ Use áudio contínuo na montagem final; concatenar AAC reencodado por beat pode 
 
 ## Renderizar e revisar
 
-Valide o plano e faça primeiro uma prévia representativa com material real. Confira identidade, contraste entre painel e fundo, cor original, textura, recortes, foco, zoom, fades e sincronismo. A prévia deve incluir uma cena clara, uma escura e uma de diálogo; evite tratamento que apague o traço ou concorra com a leitura. Corrija os problemas observados antes do master.
+Valide o plano e faça primeiro uma prévia representativa com material real. Confira identidade, contraste entre painel e fundo, cor original, textura, recortes, foco, zoom, fades, continuidade entre frames e sincronismo. Assista aos movimentos em velocidade normal, além dos frames parados. A prévia deve incluir uma cena clara, uma escura e uma de diálogo; evite tratamento que apague o traço ou concorra com a leitura. Corrija os problemas observados antes do master.
 
 Entregue vídeo da história inteira, plano JSON, cobertura e relatório dos módulos realmente executados. Use o áudio real e a cobertura para conferir duração; não acelere, corte o desfecho ou repita imagens/falas para forçar a faixa de 10–30 minutos. Confira gancho, intro, contexto, corpo, análise/revelações, CTA, outro e mix; ausência de anúncio é requisito. Verifique decodificação completa, duração/cobertura, streams, resolução/fps, loudness e início/fim. Validação técnica não prova fidelidade narrativa: confira também se a imagem sustenta cada frase e se o escopo inteiro foi coberto.
 

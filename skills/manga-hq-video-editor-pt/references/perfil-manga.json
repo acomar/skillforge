@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "profile_id": "comic-identity-longform-v1",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "language": "pt-BR",
   "corpus": [
     {
@@ -142,14 +142,14 @@
       155
     ],
     "body_panel_seconds_range": [
-      6,
-      14
+      4,
+      8
     ],
     "zoom_scales": [
       1,
-      1.8
+      1.5
     ],
-    "fade_seconds": 0.4,
+    "fade_seconds": 0.25,
     "mix_target_lufs": -17,
     "max_true_peak_dbtp": -1,
     "subtitles": false,
@@ -190,9 +190,16 @@
     "visual_style": "original per-work art direction based on observed source identity",
     "background": "original quiet image or restrained ambient palette, no floating geometric ornaments",
     "foreground_color_mode": "original",
-    "manga_cyan": "optional per-work adaptation or explicit request"
+    "manga_cyan": "optional per-work adaptation or explicit request",
+    "zoom_default_peak_range": [
+      1.25,
+      1.5
+    ],
+    "zoom_default_policy": "Alternate in/out; peak=1+clamp(0.06*aligned_beat_seconds,0.25,0.50). Explicit reviewed endpoints take precedence.",
+    "motion_easing": "smoothstep",
+    "motion_review": "Watch consecutive frames at normal speed; preserve narrative details and avoid jitter. Audio determines timing; subdivide long shots only with supporting source panels."
   },
-  "implementation_boundary": "Helpers carry complete-story coverage, narration-duration estimates and source-specific visual identity. The builder resolves background assets and the renderer supports original panel colors and a custom image background with restrained motion; missing identity uses a quiet ambient fallback. Silent intro/outro, titles, music and effects still require agent composition. Narration estimates do not replace recorded audio or certify factual completeness. Measured reference values remain in observed/corpus.",
+  "implementation_boundary": "Helpers carry complete-story coverage, narration-duration estimates and source-specific visual identity. The builder resolves background assets and the renderer supports original panel colors and a custom image background with restrained motion; missing identity uses a quiet ambient fallback. Silent intro/outro, titles, music and effects still require agent composition. Narration estimates do not replace recorded audio or certify factual completeness. Measured reference values remain in observed/corpus. Panel zoom supports smoothstep or linear easing and spatial supersampling before zoompan; this reduces integer-window jitter but does not certify subjective smoothness at every resolution.",
   "limitations": [
     "Shot detector .3 misses blue body fades: candidates are not shots",
     "ASR names/counts/punctuation may be wrong; counts include ads and CTA",

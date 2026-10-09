@@ -4,7 +4,7 @@ description: Conta a história inteira de uma HQ ou mangá em português, mirand
 metadata:
   category: content
   status: experimental
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Roteiro completo de HQ e mangá
@@ -36,7 +36,7 @@ Entregue `narration.txt` com **apenas o texto que deve ser falado**, sem tempos,
 
 Gere obrigatoriamente **`editing-analysis.json` e `editing-analysis.md`**: a análise que a edição usa para encontrar as imagens. Ela deve reunir catálogo pesquisável de páginas/painéis, descrições visuais e o mapa trecho narrado→arquivo→painel→recorte, com motivos de escolha e material excluído. Leia [references/analise-para-edicao.md](references/analise-para-edicao.md). O JSON inclui roteiro e manifesto para ser usado diretamente pelo editor; o Markdown facilita conferência e busca humana.
 
-Defina também `visual_identity` a partir da paleta, traço, gênero, cenários e clima da obra; veja [references/identidade-visual-da-obra.md](references/identidade-visual-da-obra.md). O fundo deve ser original, discreto e próprio daquela obra; preserve a arte dos painéis por padrão.
+Defina também `visual_identity` a partir da paleta, traço, gênero, cenários e clima da obra; veja [references/identidade-visual-da-obra.md](references/identidade-visual-da-obra.md). O fundo deve ser original, discreto e próprio daquela obra; preserve a arte dos painéis por padrão. Quando propuser câmera, planeje movimentos perceptíveis e suaves, com foco no detalhe narrativo; `motion.easing:smoothstep` acompanha os endpoints no arquivo de análise. A edição confirma o movimento com o áudio e os recortes reais.
 
 Em `editorial_notes` de cada beat, explique por que o painel sustenta a fala e qual detalhe deve permanecer visível; mantenha essas notas fora do texto narrado. Registre `production_structure.sections` no roteiro e `section_id` nos beats para a edição reconhecer gancho, intro, corpo, análise, CTA e outro. Seções silenciosas, como uma vinheta, ficam no plano de produção sem criar fala ou evidência fictícia. A análise deve preservar essa estrutura junto do mapa de imagens.
 

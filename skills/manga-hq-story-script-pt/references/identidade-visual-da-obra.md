@@ -20,6 +20,12 @@ Sem gerador disponível, componha um recurso original simples com texturas próp
 
 O movimento do fundo é lento e secundário: um crescimento de1→1.035 ao longo da timeline é o ponto de partida do helper, configurável até1.12. Prefira planos narrativos que mostrem o fundo apenas como moldura/atmosfera. Faça fade entre painéis mantendo o ambiente contínuo. Intro, títulos, CTA e outro devem usar a mesma direção de arte, com ritmo próprio.
 
+## Movimento dos quadros
+
+Os quadros precisam de movimento perceptível e suave, mantendo o fundo secundário. Alterne aproximação e afastamento conforme a ação; um início em1 e pico entre1.25–1.50 é uma referência de aplicação, não uma obrigação para toda imagem. `motion:{"from_scale":1,"to_scale":1.35,"easing":"smoothstep"}` acelera e desacelera gradualmente. `linear` permanece disponível quando uma velocidade constante for intencional. O ponto focal deve preservar rosto, gesto ou detalhe que sustenta a fala.
+
+A skill de edição reduz a quantização espacial antes de animar os quadros e o fundo; isso não deve ser confundido com aumentar somente o FPS. Para prévias960×540, a implementação usa entrada4×; para1920×1080,2×. Em UHD o limite de memória usa1×, e a suavidade precisa de avaliação específica. Confira os movimentos em reprodução normal e em frames consecutivos, com e sem aproximação. Em um plano longo, use mais de um painel pertinente quando isso melhorar a história; o áudio continua definindo a duração total.
+
 ## Contrato e caminhos
 
 No roteiro, o arquivo de fundo resolve a partir da pasta do roteiro:

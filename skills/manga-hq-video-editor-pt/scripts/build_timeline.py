@@ -448,13 +448,21 @@ def _build_plan(manifest, script, audio_path, output_path, *, images, sources,
     for i, (item, (sf, ef)) in enumerate(zip(evidence, boundaries)):
         beat = item["beat"]
         duration = (ef-sf)/float(rate)
-        motion = beat.get("motion", {"from_scale": 1 if i%2 == 0 else 1.8, "to_scale": 1.8 if i%2 == 0 else 1})
+        # New, unplanned shots use a duration-aware zoom. Reviewed endpoints
+        # remain authoritative, including older strong or restrained moves.
+        default_scale = 1 + min(.5, max(.25, duration*.06))
+        motion = beat.get("motion", {"from_scale": 1 if i%2 == 0 else default_scale,
+                                   "to_scale": default_scale if i%2 == 0 else 1})
         if not isinstance(motion, dict):
             raise TimelineError(f"{beat['id']}: motion deve ser objeto.")
-        motion = {key: finite(motion.get(key), f"{beat['id']} {key}") for key in ("from_scale", "to_scale")}
-        if any(not 1 <= value <= 2.5 for value in motion.values()):
+        easing = motion.get("easing", "smoothstep")
+        if not isinstance(easing, str) or easing not in {"smoothstep", "linear"}:
+            raise TimelineError(f"{beat['id']}: motion.easing deve ser smoothstep ou linear.")
+        scales = {key: finite(motion.get(key), f"{beat['id']} {key}") for key in ("from_scale", "to_scale")}
+        if any(not 1 <= value <= 2.5 for value in scales.values()):
             raise TimelineError(f"{beat['id']}: escalas devem estar entre 1 e 2.5, sobre contain-fit.")
-        transition = finite(beat.get("transition_seconds", min(.4, duration/4)), f"{beat['id']} transition_seconds")
+        motion = {**scales, "easing": easing}
+        transition = finite(beat.get("transition_seconds", min(.25, duration/4)), f"{beat['id']} transition_seconds")
         if not 0 <= transition <= min(1, duration/2):
             raise TimelineError(f"{beat['id']}: fade deve estar entre 0 e min(1s,duração/2).")
         color = beat.get("color_mode", "original")

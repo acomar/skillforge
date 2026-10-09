@@ -57,7 +57,7 @@ Limites são quantizados em frames contínuos, total=ceil(duração_áudio×fps)
       "end": 8.008,
       "image": "imagens/01.jpg",
       "bbox": [0.05, 0.05, 0.95, 0.4],
-      "motion": {"from_scale": 1, "to_scale": 1.8},
+      "motion": {"from_scale": 1, "to_scale": 1.35, "easing": "smoothstep"},
       "transition_seconds": 0.4,
       "color_mode": "original",
       "focal_point": [0.5, 0.5],
@@ -71,7 +71,7 @@ Trecho ilustrativo, não timeline completa: beats reais precisam cobrir todo áu
 
 Quando presentes, `production_structure` e `section_id` são preservados no plano para o agente compor gancho, intro/vinheta, contexto, recap, análise/revelações, CTA e outro. Esses metadados não alteram tempos ou imagens e não inserem módulos silenciosos automaticamente. A composição completa e seu mix estão em [estrutura-completa-sem-anuncios.md](estrutura-completa-sem-anuncios.md).
 
-`from_scale/to_scale` variam1–2.5 sobre fit com margem; default alterna1→1.8 e1.8→1. `focal_point` é relativo ao recorte. `color_mode` aceita manga_cyan ou original. Fade ocorre dentro de cada beat, sem sobreposição de duração entre beats. O renderer implementa zoom linear e fundo original de imagem ou ambiente discreto; não recupera easing/keyframes do projeto de referência. Imagens de edição: PNG/JPG/JPEG/WebP/BMP/TIF/TIFF; GIF inventariado na leitura precisa ser convertido para imagem estática conferida.
+`from_scale/to_scale` variam1–2.5 sobre fit com margem. Sem endpoints definidos, o builder alterna aproximação/afastamento usando pico entre1.25–1.50 conforme a duração alinhada: `1+min(0.50,max(0.25,0.06*segundos))`. Endpoints explícitos permanecem intactos. `motion.easing` aceita `smoothstep` (padrão, acelera/desacelera) ou `linear` (velocidade constante); valores inválidos são rejeitados. `focal_point` é relativo ao recorte. `color_mode` aceita manga_cyan ou original. Fade ocorre dentro de cada beat, sem sobreposição de duração entre beats. O renderer implementa curvas originais e fundo de imagem ou ambiente discreto; não recupera os keyframes do projeto de referência. Imagens de edição: PNG/JPG/JPEG/WebP/BMP/TIF/TIFF; GIF inventariado na leitura precisa ser convertido para imagem estática conferida.
 
 ## Validar, renderizar e retomar
 
@@ -88,3 +88,9 @@ Master exige plano pronto e recortes revisados. Saída MP4 nova evita substituir
 Renderer normaliza áudio em duas passagens para-17LUFS/-1dBTP antes de AAC e muxa uma faixa global em48kHz estéreo192kbps. Mede novamente a entrega AAC; se o pico ultrapassar-1dBTP, aplica uma atenuação global e verifica novamente. Isso pode deixar LUFS abaixo do alvo em gravações com picos fortes. `--no-loudnorm` mantém nível fornecido; silêncio/não gated também desativa normalização com motivo no relatório.
 
 Saídas: MP4 e `*.render-report.json` com hashes, comandos, segmentos reutilizados, limites quantizados e decode. Apenas uma faixa de áudio é usada; trilha/voz/efeitos adicionais precisam chegar em mix fornecido ou ser montados no projeto.
+
+## Precisão do movimento
+
+O renderer1.2.0 amplia o canvas intermediário antes de `zoompan`, inclusive posições focais, e usa `gbrap` nessa etapa para manter transparência sem subamostragem de cor. O fator adaptativo é4× em960×540 e2× em1920×1080, limitado a3840 por eixo e cerca de8,3MP; UHD usa1×. O arquivo final mantém resolução e FPS solicitados. O fundo usa a mesma precisão e tempo global, sem reiniciar o zoom em cada corte.
+
+Esta decisão reduz os degraus causados pela janela inteira do filtro, conforme o [código oficial do FFmpeg](https://ffmpeg.org/doxygen/trunk/vf__zoompan_8c_source.html). A curva suave controla a velocidade; ela sozinha não elimina quantização espacial. Confira a saída em reprodução e preserve a evidência nos extremos do movimento. Versão, fator, curva e endpoints participam da identidade do render/cache, impedindo reutilizar segmentos da implementação antiga como se fossem novos.

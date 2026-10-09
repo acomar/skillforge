@@ -10,6 +10,8 @@ O caminho direto do builder usa marcas por beat confirmadas. O agente deve local
 
 ## Imagem e movimento
 
+Assista aos movimentos em velocidade normal e compare frames consecutivos. A aproximação deve ser perceptível, com entrada/saída suaves e sem bordas que saltam ou vibram. Use `smoothstep` como início; amplitudes1.25–1.50 em planos adequados dão mais energia que a antiga prévia1.12. Confira também o fundo entre cortes. Supersampling antes do zoom reduz a quantização; aumentar apenas o FPS ou usar easing não resolve esse problema sozinho. Em UHD, valide a suavidade especificamente, pois o limite de memória reduz o fator intermediário.
+
 Confira crop no começo, meio e fim. Boxes relativas à página precisam excluir cenas vizinhas quando essas cenas contradizem a fala. Um zoom2× pode ser apropriado para um rosto, mas cortar o gesto que prova a ação é falha editorial. Para leitura de balão, prefira um plano estável/menor até a fala correspondente terminar.
 
 Crie fundo original segundo a identidade da obra, preserve a arte dos painéis e confira o contraste. O ambiente não deve apresentar formas geométricas flutuantes nem detalhes que disputem a atenção com rostos e balões. Não há fundamento para apagar balões da HQ por padrão.
