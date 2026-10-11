@@ -49,7 +49,7 @@ Sem credenciais, reavalie evidências existentes:
 python "$SKILL_DIR/scripts/youtube_outliers.py" --snapshot ./amostra.json --output ./reanalise.json
 ```
 
-Antes de chamar a API, use `--dry-run` e confira o orçamento. A chave deve ficar em variável de ambiente; não a registre em argumentos, arquivos versionados ou relatórios. A busca `search.list` custa 100 unidades por requisição; `channels.list`, `playlistItems.list` e `videos.list` tipicamente 1 unidade por requisição. O `--quota-budget` impõe teto local **estimado**. Em caso de 403/quota, 429 ou falha de rede, reporte a falha; não invente resultados e não confunda erro com busca sem correspondências.
+Antes de chamar a API, use `--dry-run` e confira o orçamento. A chave deve ficar em variável de ambiente; não a registre em argumentos, arquivos versionados ou relatórios. A documentação oficial atual prevê até 100 chamadas `search.list` por dia em um **bucket de buscas separado**, com custo de 1 unidade por chamada nesse bucket; `channels.list`, `playlistItems.list` e `videos.list` custam 1 unidade por requisição no bucket geral. `--search-call-budget` limita buscas e `--quota-budget` impõe um teto conservador local de solicitações. Confira a cota efetiva no projeto Google Cloud. Em caso de 403/quota, 429 ou falha de rede, reporte a falha; não invente resultados e não confunda erro com busca sem correspondências.
 
 ## Procedimento editorial
 
