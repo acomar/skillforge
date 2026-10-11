@@ -22,7 +22,7 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 BASE = "https://www.googleapis.com/youtube/v3"
-QUOTA_COST = {"search": 100, "channels": 1, "playlistItems": 1, "videos": 1}
+QUOTA_COST = {"search": 1, "channels": 1, "playlistItems": 1, "videos": 1}
 
 
 class ResearchError(Exception):
@@ -147,18 +147,24 @@ def score_snapshot(snapshot, args, now=None):
 
 
 class YouTubeClient:
-    def __init__(self, key, quota_budget):
+    def __init__(self, key, quota_budget, search_call_budget=100):
         self.key = key
         self.budget = quota_budget
+        self.search_call_budget = search_call_budget
         self.used = 0
+        self.search_calls = 0
         self.calls = defaultdict(int)
 
     def request(self, endpoint, **params):
         cost = QUOTA_COST[endpoint]
+        if endpoint == "search" and self.search_calls >= self.search_call_budget:
+            raise ResearchError(f"Local search call limit hit: {self.search_calls}/{self.search_call_budget}. Reduce search terms or change --search-call-budget.")
         if self.used + cost > self.budget:
             raise ResearchError(f"Quota budget exceeded before {endpoint}: {self.used}/{self.budget} estimated units. Narrow terms/channels or raise --quota-budget.")
         self.used += cost
         self.calls[endpoint] += 1
+        if endpoint == "search":
+            self.search_calls += 1
         # Never include API key or generated URL in logs/errors.
         url = f"{BASE}/{endpoint}?" + urlencode({"part": params.pop("part"), **params, "key": self.key})
         for attempt in range(3):
@@ -295,7 +301,8 @@ def build_parser():
     p.add_argument("--search-order", choices=["date", "viewCount", "relevance"], default="date")
     p.add_argument("--region-code", help="Optional YouTube region hint (BR, MX, US)")
     p.add_argument("--relevance-language", help="Optional search relevance language hint (pt, es, en)")
-    p.add_argument("--quota-budget", type=int, default=1000, help="Hard local estimated quota budget")
+    p.add_argument("--quota-budget", type=int, default=1000, help="Hard local estimated total-request unit budget")
+    p.add_argument("--search-call-budget", type=int, default=100, help="Hard local search.list call limit (separate API bucket)")
     p.add_argument("--max-results", type=int, default=15)
     p.add_argument("--output", default="outliers.json", help="JSON result path; CSV saved alongside")
     p.add_argument("--dry-run", action="store_true", help="No API calls, show approximate quota budget")
@@ -304,14 +311,15 @@ def build_parser():
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    if args.days < 1 or args.baseline_size < 1 or args.min_baseline < 1 or args.min_baseline > args.baseline_size or args.search_results < 1 or args.max_channels < 1 or args.max_duration_seconds < 1 or args.quota_budget < 1 or args.max_results < 1 or args.min_views < 0 or args.min_outlier_score <= 0 or args.min_age_hours < 0:
+    if args.days < 1 or args.baseline_size < 1 or args.min_baseline < 1 or args.min_baseline > args.baseline_size or args.search_results < 1 or args.max_channels < 1 or args.max_duration_seconds < 1 or args.quota_budget < 1 or args.search_call_budget < 1 or args.max_results < 1 or args.min_views < 0 or args.min_outlier_score <= 0 or args.min_age_hours < 0:
         raise ResearchError("Invalid thresholds: use positive sizes/budget and min-baseline <= baseline-size.")
     if not args.snapshot and not args.terms and not args.channel_ids:
         raise ResearchError("Provide --terms, --channel-ids or --snapshot.")
     if args.dry_run:
-        print(json.dumps({"search_quota_units": len(args.terms or []) * 100,
+        print(json.dumps({"planned_search_calls": len(args.terms or []),
+                          "search_call_budget": args.search_call_budget,
                           "other_calls": "channels.list, playlistItems.list, videos.list cost 1 unit per call",
-                          "budget": args.quota_budget,
+                          "request_budget": args.quota_budget,
                           "max_channels": args.max_channels}, indent=2))
         return 0
     client = None
@@ -321,7 +329,7 @@ def main(argv=None):
         key = os.environ.get("YOUTUBE_API_KEY")
         if not key:
             raise ResearchError("YOUTUBE_API_KEY missing. Export it in the environment; never put it in CLI arguments.")
-        client = YouTubeClient(key, args.quota_budget)
+        client = YouTubeClient(key, args.quota_budget, args.search_call_budget)
         snapshot = collect_live(args, client)
     if args.save_snapshot:
         dst = Path(args.save_snapshot)
@@ -336,6 +344,7 @@ def main(argv=None):
            "sampled_videos": len(snapshot.get("videos", [])),
            "candidate_count": len(snapshot.get("candidate_ids", [])),
            "estimated_quota_used": client.used if client else 0,
+           "search_calls_used": client.search_calls if client else 0,
            "quota_calls": dict(client.calls) if client else {},
            "rejection_counts": reasons, "results": items}
     target = Path(args.output)
