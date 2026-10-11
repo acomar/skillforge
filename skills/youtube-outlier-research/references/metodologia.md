@@ -2,7 +2,7 @@
 
 ## Modelo do dado
 
-O comando `scripts/youtube_outliers.py` produz um JSON com `generated_at`, `search_terms`, `method`, `format_caveat`, `age_caveat`, `sampled_channels`, `sampled_videos`, `candidate_count`, `estimated_quota_used`, `quota_calls`, `rejection_counts` e `results`.
+O comando `scripts/youtube_outliers.py` produz um JSON com `generated_at`, `search_terms`, `method`, `format_caveat`, `age_caveat`, `sampled_channels`, `sampled_videos`, `candidate_count`, `estimated_quota_used`, `search_calls_used`, `quota_calls`, `rejection_counts` e `results`.
 
 Cada `result` contém `video_id`, `video_url`, `title`, `published_at`, `channel_id`, `channel_name`, `channel_url`, `subscribers`, `views`, `duration_seconds`, `format`, `format_verified`, `baseline_median_views`, `baseline_sample_size`, `outlier_score`, `views_per_day`, `views_per_subscriber`, `confidence` e `caveat`. Um CSV com as mesmas colunas é gerado quando há resultados. Útil para importação pelo `viral-shorts`, sem exigir rede no processamento subsequente.
 
@@ -14,7 +14,7 @@ O `--save-snapshot` registra os dados normalizados `channels`, `videos` e `candi
 - Baseline mínimo = 5; 5 a 14 pares é evidência limitada, 15+ pares melhora estabilidade mas não elimina viés.
 - `views_per_subscriber` é sinal secundário do potencial de canal pequeno, não prova de descoberta orgânica ou faturamento.
 - 180 segundos é corte operacional para `shorts_proxy`. Shorts reais dependem de orientação, data e classificações que esta API não entrega de forma inequívoca. Se o negócio exigir seleção estrita de Shorts, use outro sinal verificável com autorização e documente o método.
-- A API de busca não permite filtrar por inscritos: descubra candidatos, consulte `channels.list`, depois aplique filtro local.
+- A API de busca não permite filtrar por inscritos: descubra candidatos, consulte `channels.list`, depois aplique filtro local. A documentação atual da API separa a cota `search.list` (100 chamadas/dia por padrão, custo 1 unidade por chamada nesse bucket) da cota geral; verifique os limites do projeto antes de executar.
 - Nunca infira causa a partir de correlação. Visualizações acumuladas favorecem vídeos mais antigos; reconheça esse viés ao comparar idades diferentes.
 
 ## Fluxo com diagnóstico de vazios
