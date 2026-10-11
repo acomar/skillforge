@@ -85,7 +85,7 @@ class TestOutlierScoring(unittest.TestCase):
             self.assertEqual(report["estimated_quota_used"], 0)
 
     def test_quota_guard_before_network(self):
-        api = outliers.YouTubeClient("secret", quota_budget=1)
+        api = outliers.YouTubeClient("secret", quota_budget=1, search_call_budget=0)
         with self.assertRaises(outliers.ResearchError):
             api.request("search", part="snippet", q="manga")
         self.assertEqual(api.used, 0)
