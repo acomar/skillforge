@@ -76,7 +76,7 @@ class TestOutlierScoring(unittest.TestCase):
             snapshot = path / "snapshot.json"
             snapshot.write_text(json.dumps(fixture()), encoding="utf-8")
             output = path / "report.json"
-            rc = outliers.main(["--snapshot", str(snapshot), "--min-age-hours", "0", "--output", str(output)])
+            rc = outliers.main(["--snapshot", str(snapshot), "--published-after", "2026-10-01T00:00:00Z", "--published-before", "2026-10-11T23:59:59Z", "--min-age-hours", "0", "--output", str(output)])
             self.assertEqual(rc, 0)
             self.assertTrue(output.exists())
             self.assertTrue(output.with_suffix(".csv").exists())
