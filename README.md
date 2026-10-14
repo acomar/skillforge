@@ -37,6 +37,7 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 
 ## Skills disponíveis
 
+- [foco-motion-tiktok](skills/foco-motion-tiktok/SKILL.md): transformar prints de assuntos sugeridos do TikTok em roteiros e scripts de cenas Foco Motion 3D para Meu Bebê em Foco. Status experimental.
 - [skillforge-maintainer](skills/skillforge-maintainer/SKILL.md): criar, revisar e manter esta biblioteca de skills.
 - [video-editing-longform-pt](skills/video-editing-longform-pt/SKILL.md): analisar referências e recriar ou editar vídeos longos, com capítulos, retomada e validação. Status experimental.
 - [manga-hq-story-script-pt](skills/manga-hq-story-script-pt/SKILL.md): contar a história inteira em geral10–30min, sem anúncios, com gancho, intro, análise, CTA, outro, identidade da obra e mapa de imagens/painéis. Status experimental.
