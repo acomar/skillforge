@@ -1,5 +1,5 @@
 ---
-name: video-editing-longform-pt
+name: video-editing-longform
 description: Analisa, recria e edita vídeos longos a partir de uma referência audiovisual, com mapa de cenas, sincronização, processamento por capítulos e validação de entrega. Use para reproduzir uma montagem com material fornecido, adaptar seu estilo ou montar vídeos de longa duração. Não use para apenas baixar arquivos ou gerar imagens isoladas.
 license: MIT; atribuição e licença da base em references/LICENSE-upstream.txt
 metadata:
@@ -10,7 +10,7 @@ metadata:
 
 # Edição e recriação de vídeos longos
 
-Transforme referência e materiais disponíveis em uma montagem verificável. Responda em português, salvo preferência diferente do usuário. Funciona com documentários, aulas, entrevistas, histórias narradas e vídeos de HQ; escolha a linguagem visual conforme o material, sem impor um estilo único.
+Transforme referência e materiais disponíveis em uma montagem verificável. Antes de produzir narração, legendas ou textos na tela, identifique o idioma desejado para este projeto. Se o usuário ainda não o informou, pergunte qual idioma usar. Não presuma português ou qualquer outro idioma como padrão. Use o idioma escolhido de forma consistente na narração, legendas, títulos e textos produzidos; preserve falas originais quando não houver pedido de tradução ou dublagem. Funciona com documentários, aulas, entrevistas, histórias narradas e vídeos de HQ; escolha a linguagem visual conforme o material, sem impor um estilo único.
 
 ## Escopo e entradas
 
