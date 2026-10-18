@@ -69,6 +69,22 @@ class ShortFormSmoke(unittest.TestCase):
         self.assertEqual(report["status"],"technically_validated")
         self.assertEqual(report["cta"],1)
         self.assertEqual(report["canvas"]["width"],180)
+        # Rendered video from the advanced manga editor can receive a CTA as a
+        # separate post-processing step, preserving its original audio codec.
+        overlay = SCRIPT.parent / "motion_cta_overlay.py"
+        overlay_target = self.root / "overlay.mp4"
+        cp = subprocess.run(
+            [sys.executable, str(overlay), str(target), str(self.plan_path),
+             "--output", str(overlay_target),
+             "--workdir", str(self.root / "cta-work")],
+            text=True, capture_output=True
+        )
+        self.assertEqual(cp.returncode, 0, cp.stderr)
+        self.assertTrue(overlay_target.is_file())
+        motion_report = json.loads(
+            (self.root / "overlay.motion-report.json").read_text())
+        self.assertEqual(motion_report["status"], "technically_validated")
+        self.assertTrue(motion_report["audio_codec_preserved"])
 
 
 if __name__ == "__main__":
