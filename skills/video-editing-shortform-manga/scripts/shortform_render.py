@@ -174,7 +174,7 @@ def clip_filter(width: int, height: int, fps: int, n: int, seg: dict) -> str:
     )
 
 
-def cta_filters(plan: dict, output_width: int, output_height: int, temp: Path) -> list[str]:
+def cta_filters(plan: dict, output_width: int, output_height: int, temp: Path, asset_root: Path | None = None) -> list[str]:
     filters = []
     for ix, cta in enumerate(plan.get("cta", [])):
         start = float(cta["start"])
@@ -192,7 +192,7 @@ def cta_filters(plan: dict, output_width: int, output_height: int, temp: Path) -
         )
         font = plan.get("font_file")
         font_argument = (
-            f"fontfile='{source_path(temp.parent.parent, font)}'"
+            f"fontfile='{source_path(asset_root or temp.parent.parent, font)}'"
             if font else "font='DejaVu Sans'"
         )
         filters.append(
@@ -251,7 +251,7 @@ def render(plan_path: Path, output: Path, workdir: Path, preview_scale: float) -
     output.parent.mkdir(parents=True, exist_ok=True)
     cmd = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
            "-i", str(joined), "-i", str(source_path(plan_path.parent,plan["audio"]))]
-    filters = cta_filters(plan, width, height, temp)
+    filters = cta_filters(plan, width, height, temp, plan_path.parent)
     if filters:
         cmd += ["-filter_complex", "[0:v]" + ",".join(filters) + "[v]"]
         vmap = "[v]"
