@@ -67,6 +67,7 @@ def validate_skill(directory: Path) -> list[str]:
 
 
 def validate_collection(root: Path = ROOT) -> tuple[int, list[str]]:
+    """Validate skill roots and category folders without treating folders as skills."""
     skills = root / "skills"
     if not skills.is_dir():
         return 0, [f"{skills}: diretório skills/ não encontrado."]
@@ -74,15 +75,30 @@ def validate_collection(root: Path = ROOT) -> tuple[int, list[str]]:
         item for item in skills.iterdir() if item.is_dir() and not item.name.startswith(".")
     )
     errors: list[str] = []
-    if not directories:
-        errors.append("Nenhuma skill cadastrada em skills/.")
-
+    count = 0
     for directory in directories:
         if directory.is_symlink():
             errors.append(f"{directory}: symlinks não são permitidos em skills/.")
-        else:
+            continue
+        if (directory / "SKILL.md").is_file():
+            count += 1
             errors.extend(validate_skill(directory))
-    return len(directories), errors
+            continue
+        # Category directories may contain subskills, and their .gitkeep is intentional.
+        nested = sorted(directory.rglob("SKILL.md"))
+        if nested:
+            for filepath in nested:
+                parent = filepath.parent
+                if parent.is_symlink():
+                    errors.append(f"{parent}: symlinks não são permitidos em skills/.")
+                else:
+                    count += 1
+                    errors.extend(validate_skill(parent))
+        elif not (directory / ".gitkeep").is_file():
+            errors.append(f"{directory}: SKILL.md obrigatório ausente.")
+    if count == 0 and not errors:
+        errors.append("Nenhuma skill cadastrada em skills/.")
+    return count, errors
 
 
 def main() -> None:
