@@ -1,124 +1,110 @@
 #!/usr/bin/env python3
-"""Add subtle, narrative-safe CTA motion to a pre-rendered vertical manga master.
+"""Apply quiet CTA motion to an existing vertical master, retaining audio codec.
 
-Preserves the original audio stream; the video is re-encoded once for overlays.
+This is the bridge to the installed manga-hq-video-editor-pt advanced render.
+Requires only Python>=3.11 and FFmpeg; no TTS, ASR, automatic CTA placement.
 """
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import subprocess
+import math
+import sys
 import tempfile
 from pathlib import Path
 
-from shortform_render import (
-    PlanError,
-    overlay_filters,
-    sha256 as digest,
-    ffprobe as probe,
-    check as require,
-    shell as run,
-)
-
-ACTIONS = {"follow", "like", "comment"}
+from shortform_render import PlanError, check, ffprobe, numeric, overlay_filters, sha256, shell
 
 
-def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
-    require(master.is_file(), f"master ausente: {master}")
-    require(spec.is_file(), f"plano CTA ausente: {spec}")
-    require(not output.exists(), f"não sobrescrever saída existente: {output}")
-    media = probe(master)
-    v = [s for s in media.get("streams", []) if s.get("codec_type") == "video"]
-    a = [s for s in media.get("streams", []) if s.get("codec_type") == "audio"]
-    require(len(v)==1 and len(a)==1, "master requer 1 vídeo e 1 áudio")
-    width, height = v[0]["width"], v[0]["height"]
-    require(height > width, "esperado master vertical já revisado")
-    duration = float(media.get("format", {}).get("duration") or 0)
-    require(duration > 0, "duração inválida")
-    plan = json.loads(spec.read_text(encoding="utf-8"))
-    ctas = plan.get("cta",[])
-    require(isinstance(ctas,list), "cta deve ser lista")
-    require(len(ctas) <= (2 if duration >= 75 else 1),
-            "CTA excessivo para duração")
-    protected = []
-    for interval in plan.get("protected_intervals",[]):
-        start,end = interval["start"],interval["end"]
-        require(0 <= start < end <= duration, "intervalo protegido inválido")
-        protected.append((start,end))
-    # A timeline may mark a climactic beat directly rather than duplicating
-    # it in protected_intervals. Honor both representations.
-    for beat in plan.get("segments", []):
-        if beat.get("protected"):
-            st, en = beat.get("start"), beat.get("end")
-            require(isinstance(st, (int, float)) and
-                    isinstance(en, (int, float)) and 0 <= st < en <= duration,
-                    "beat protegido inválido")
-            protected.append((st, en))
-    for ev in ctas:
-        start, leng = ev.get("start"), ev.get("duration")
-        require(ev.get("action") in ACTIONS,"action inválida")
-        require(isinstance(start,(int,float)) and
-                isinstance(leng,(int,float)) and start >= 3 and
-                1 <= leng <= 2.5 and start+leng <= duration+0.01,
-                "CTA fora de tempo")
-        require(isinstance(ev.get("text"),str) and
-                1 <= len(ev["text"].strip()) <= 56 and
-                "\n" not in ev["text"] and "\r" not in ev["text"],"texto CTA inválido")
-        require(bool(ev.get("why_now","").strip()),"why_now obrigatório")
-        require(not any(start < end_protect and start+leng > st_protect
-                        for st_protect,end_protect in protected),
-                "CTA invade o clímax/tempo protegido")
+def overlay(master:Path, specification:Path, output:Path, workdir:Path):
+    check(master.is_file(), f"Master não encontrado: {master}")
+    check(specification.is_file(), f"Plano não encontrado: {specification}")
+    check(not output.exists(), f"Saída existente, não sobrescrever: {output}")
+    meta=ffprobe(master)
+    videos=[s for s in meta.get('streams',[]) if s.get('codec_type')=='video']
+    audios=[s for s in meta.get('streams',[]) if s.get('codec_type')=='audio']
+    check(len(videos)==1 and len(audios)==1,'Master precisa ter 1 faixa de vídeo e 1 de áudio')
+    width,height=videos[0]['width'],videos[0]['height']
+    check(height>width,'Master precisa ser vertical; reenquadre com o editor primeiro')
+    total=float(meta.get('format',{}).get('duration') or 0)
+    check(total>0,'Duração do master inválida')
+    p=json.loads(specification.read_text(encoding='utf-8'))
+    ctas=p.get('cta',[])
+    check(isinstance(ctas,list) and ctas,'Nenhum CTA: melhor usar o master sem re-encoding')
+    check(len(ctas)<= (2 if total>=75 else 1),'CTA demais para o vídeo')
+    protected=[]
+    for beat in p.get('segments',[]):
+        if beat.get('protected'):
+            a,b=beat.get('start'),beat.get('end')
+            check(numeric(a) and numeric(b) and 0<=a<b<=total+0.02,
+                  'Beat protegido com tempos inválidos')
+            protected.append((a,b))
+    for interval in p.get('protected_intervals',[]):
+        a,b=interval.get('start'),interval.get('end')
+        check(numeric(a) and numeric(b) and 0<=a<b<=total+0.02,
+              'Intervalo protegido inválido')
+        protected.append((a,b))
+    for event in ctas:
+        a,d=event.get('start'),event.get('duration')
+        check(event.get('action') in {'follow','like','comment'},'Ação de CTA inválida')
+        text=event.get('text')
+        check(isinstance(text,str) and 1<=len(text.strip())<=56 and
+              '\n' not in text and '\r' not in text,'Texto de CTA inválido')
+        check(isinstance(event.get('why_now'),str) and event['why_now'].strip(),
+              'CTA sem justificativa narrativa')
+        check(numeric(a) and numeric(d) and a>=3 and 1<=d<=2.5 and a+d<=total+0.01,
+              'CTA fora da janela temporal')
+        check(not any(a<b-0.0001 and a+d>x+0.0001 for x,b in protected),
+              'CTA sobrepõe intervalo emocional protegido')
     workdir.mkdir(parents=True,exist_ok=True)
-    temp = Path(tempfile.mkdtemp(prefix="cta_",dir=workdir))
-    log = temp/"ffmpeg.log"
-    # cta_filters is shared with the standalone renderer.
-    ff = overlay_filters(ctas, temp, width)
-    require(ff, "sem CTA, preserve o master original sem reencode")
+    temp=Path(tempfile.mkdtemp(prefix='motion_',dir=workdir))
+    logfile=temp/'ffmpeg.log'
+    filters=overlay_filters(ctas,temp,width)
     output.parent.mkdir(parents=True,exist_ok=True)
-    cmd = ["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y",
-           "-i",str(master),"-map","0:v:0","-map","0:a:0",
-           "-vf",",".join(ff),"-c:v","libx264","-preset","medium",
-           "-crf","18","-pix_fmt","yuv420p","-c:a","copy",
-           "-movflags","+faststart",str(output)]
-    run(cmd,log)
-    run(["ffmpeg","-nostdin","-v","error","-i",str(output),
-         "-f","null","-"],log)
-    actual=probe(output)
-    require(any(s.get("codec_type")=="audio" for s in actual["streams"]),
-            "áudio desapareceu")
-    total=float(actual["format"].get("duration") or 0)
-    require(abs(total-duration)<=0.25,"duração divergente")
-    result={
-        "status":"technically_validated","mode":"cta-over-existing-master",
-        "input":str(master),"output":str(output),
-        "duration_before_s":duration,"duration_after_s":total,
-        "cta_count":len(ctas),"audio_codec_preserved":True,
-        "sha256":digest(output),"log":str(log),
-        "human_review_pending":["composição visual do CTA","clímax e pausa emocional",
-                                "direitos e monetização das fontes"]
-    }
-    report=output.with_suffix(".motion-report.json")
-    report.write_text(json.dumps(result,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
+    cmd=['ffmpeg','-nostdin','-hide_banner','-loglevel','error','-y',
+         '-i',str(master),'-map','0:v:0','-map','0:a:0',
+         '-vf',','.join(filters),'-c:v','libx264','-preset','medium',
+         '-crf','19','-pix_fmt','yuv420p','-c:a','copy',
+         '-movflags','+faststart',str(output)]
+    shell(cmd,logfile)
+    shell(['ffmpeg','-nostdin','-v','error','-i',str(output),'-f','null','-'],logfile)
+    actual=ffprobe(output)
+    audios_after=[s for s in actual.get('streams',[]) if s.get('codec_type')=='audio']
+    video_after=[s for s in actual.get('streams',[]) if s.get('codec_type')=='video']
+    check(len(audios_after)==1 and len(video_after)==1,'Faixa desapareceu na saída')
+    actual_total=float(actual['format'].get('duration') or 0)
+    check(abs(actual_total-total)<=0.25,'Duração divergente após CTA')
+    check(video_after[0]['width']==width and video_after[0]['height']==height,
+          'Tamanho alterado após overlay')
+    check(audios_after[0].get('codec_name')==audios[0].get('codec_name'),
+          'Codec de áudio foi alterado')
+    result={'status':'technically_validated','mode':'cta-over-existing-master',
+            'input':str(master),'output':str(output),
+            'duration_before_s':total,'duration_after_s':actual_total,
+            'cta_count':len(ctas),'audio_codec_preserved':True,
+            'sha256':sha256(output),'log':str(logfile),
+            'human_review_required':['legibilidade do CTA','percepção do clímax',
+                                     'originalidade e direitos','revisão no celular']}
+    output.with_suffix('.motion-report.json').write_text(
+        json.dumps(result,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     return result
 
 
-def main() -> int:
-    p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("master",type=Path)
-    p.add_argument("cta_plan",type=Path)
-    p.add_argument("--output",type=Path,required=True)
-    p.add_argument("--workdir",type=Path,default=Path(".motion-work"))
-    args=p.parse_args()
+def main():
+    cli=argparse.ArgumentParser(description=__doc__)
+    cli.add_argument('master',type=Path)
+    cli.add_argument('cta_plan',type=Path)
+    cli.add_argument('--output',type=Path,required=True)
+    cli.add_argument('--workdir',type=Path,default=Path('.motion-work'))
+    args=cli.parse_args()
     try:
         result=overlay(args.master.resolve(),args.cta_plan.resolve(),
                        args.output.resolve(),args.workdir.resolve())
         print(json.dumps(result,ensure_ascii=False,indent=2))
-    except (PlanError,ValueError,KeyError,OSError) as exc:
-        print(f"ERRO: {exc}",file=__import__("sys").stderr)
+    except (PlanError,ValueError,KeyError,OSError,json.JSONDecodeError) as e:
+        print(f'ERROR: {e}',file=sys.stderr)
         return 2
     return 0
 
-
-if __name__=="__main__":
+if __name__=='__main__':
     raise SystemExit(main())
