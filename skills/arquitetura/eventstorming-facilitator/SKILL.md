@@ -1,3 +1,12 @@
+---
+name: eventstorming-facilitator
+description: Facilita EventStorming para mapear eventos, comandos, políticas, conflitos e limites de contextos.
+metadata:
+  category: architecture
+  status: experimental
+  version: "1.0.0"
+---
+
 # EventStorming Facilitator
 
 ## Objetivo
