@@ -1,6 +1,10 @@
 ---
 name: frontend-agent-skills-pt
 description: Orquestrar pesquisa, arquitetura de informação, design system, acessibilidade e implementação frontend.
+metadata:
+  category: product
+  status: experimental
+  version: "1.0.0"
 ---
 
 # Engenharia de Experiência Frontend
