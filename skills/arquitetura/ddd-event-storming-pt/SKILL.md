@@ -1,6 +1,10 @@
 ---
 name: ddd-event-storming-pt
 description: Transformar descobertas do domínio em eventos, comandos, regras e limites de contexto.
+metadata:
+  category: architecture
+  status: experimental
+  version: "1.0.0"
 ---
 
 # Modelagem DDD por EventStorming
