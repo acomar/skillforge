@@ -1,3 +1,12 @@
+---
+name: local-first-version-control
+description: Desenha versionamento, sincronização e resolução de conflitos para sistemas local-first.
+metadata:
+  category: architecture
+  status: experimental
+  version: "1.0.0"
+---
+
 # Local-First Version Control
 
 ## Objetivo
