@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "language": "es",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30
+  },
+  "audio": "assets/narracion.wav",
+  "music": "assets/musica.mp3",
+  "music_gain": 0.12,
+  "segments": [
+    {
+      "id": "B01",
+      "image": "assets/painel-01.png",
+      "start": 0,
+      "end": 3,
+      "focus": [
+        0.5,
+        0.42
+      ],
+      "zoom": [
+        1.02,
+        1.18
+      ],
+      "protected": false,
+      "why": "início do conflito",
+      "reviewed": true
+    },
+    {
+      "id": "B02",
+      "image": "assets/painel-02.png",
+      "start": 3,
+      "end": 7,
+      "focus": [
+        0.64,
+        0.35
+      ],
+      "zoom": [
+        1.05,
+        1.23
+      ],
+      "protected": true,
+      "why": "ápice e pausa",
+      "reviewed": true
+    },
+    {
+      "id": "B03",
+      "image": "assets/painel-03.png",
+      "start": 7,
+      "end": 10,
+      "focus": [
+        0.5,
+        0.45
+      ],
+      "zoom": [
+        1.16,
+        1.03
+      ],
+      "protected": false,
+      "why": "consequência e comentário",
+      "reviewed": true
+    }
+  ],
+  "cta": [
+    {
+      "action": "comment",
+      "start": 8,
+      "duration": 1.6,
+      "text": "¿Qué momento te marcó más?",
+      "why_now": "depois da resolução, pergunta interpretativa"
+    }
+  ],
+  "protected_intervals": [
+    {
+      "start": 3,
+      "end": 7,
+      "reason": "clímax"
+    }
+  ]
+}
