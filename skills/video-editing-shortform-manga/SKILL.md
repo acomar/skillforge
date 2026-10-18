@@ -34,6 +34,18 @@ Modos: (a) criar de páginas e áudio, (b) recortar um vídeo existente, (c) re-
 9. **Executar.** Primeiro vídeo piloto com material real e revisão humana; depois preview e master MP4/H.264/AAC 9:16. Usar FFmpeg/FFprobe reais. Se um motor gráfico como Remotion estiver disponível e necessário, permitir CTA vetorial equivalente, sem tornar dependência obrigatória. Registrar originais, versões, comandos e hashes; não sobrescrever mídia.
 10. **Verificar.** Inspecionar frames em início/meio/fim de cada plano e assistir o master, especialmente ápice, cortes, CTA, sincronismo, música e última imagem. Probe, decode completo, orientação, duração, FPS, uma faixa de áudio e limites de pico. Validar plano e relatório; teste de mídia sintética não certifica edição narrativa. Entregar master REAL, JSON, relatório de revisão, variantes editoriais para teste A/B e copy de publicação no idioma escolhido.
 
+## Dois caminhos de renderização
+
+**Caminho A, preferido quando o Forge Video Studio instalado estiver acessível:** usar a versão instalada de `manga-hq-video-editor-pt`, não a versão antiga do GitHub, para construir e renderizar a timeline de painéis com `cover`, recortes de ponto focal, supersampling de movimento e normalização de áudio. Reajustar cada `bbox` e `focal_point` no canvas **9:16**; o fato de um recorte ter sido revisado em 16:9 não valida 9:16. Preparar timeline `ready` com marcas de narração verificadas e gerar `master-sem-cta.mp4`. Se houver oportunidade editorial de CTA, aplicar como pós-produção:
+
+```bash
+python scripts/motion_cta_overlay.py master-sem-cta.mp4 short-plan.json --output master.mp4
+```
+
+Este adaptador adiciona microanimação de texto sobre a master já produzida, reencodificando somente o vídeo para desenhar o overlay e mantendo o stream de áudio original sem alterar a mixagem. Não fingir equivalência de qualidade entre o editor avançado e o renderizador fallback. Se não houver momento para CTA, conservar o master sem reencode. O adaptador verifica `protected_intervals` no plano CTA, mas a marcação do clímax depende da análise editorial do agente.
+
+**Caminho B, autônomo/fallback:** usar o renderizador incluído, que monta imagens ou clipes em 9:16 com recortes `cover`, zoom com curva suave, áudio original e CTA. É tecnicamente funcional, mas não substitui todos os módulos gráficos, supersampling e loudness da versão instalada do editor de longos.
+
 ## Motor incluído
 
 Requisitos: Python 3.11+, FFmpeg, FFprobe; drawtext e fontconfig para overlays. Biblioteca Python padrão. Motor aceita painel já isolado em `image` ou clipe em `video`, com `source_start`, tempo de saída, foco, zoom e áudio de narração. `scripts/shortform_render.py`:
