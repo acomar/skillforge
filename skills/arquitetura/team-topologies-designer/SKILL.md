@@ -1,3 +1,12 @@
+---
+name: team-topologies-designer
+description: Facilita desenho evolutivo de topologias de times orientadas a fluxo de valor.
+metadata:
+  category: architecture
+  status: experimental
+  version: "1.0.0"
+---
+
 # Team Topologies Designer
 
 ## Objetivo
