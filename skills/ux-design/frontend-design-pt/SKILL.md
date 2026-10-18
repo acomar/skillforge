@@ -1,6 +1,10 @@
 ---
 name: frontend-design-pt
 description: Criar interfaces web marcantes e coerentes com o produto, com decisões visuais justificadas.
+metadata:
+  category: product
+  status: experimental
+  version: "1.0.0"
 ---
 
 # Design Frontend Autoral
