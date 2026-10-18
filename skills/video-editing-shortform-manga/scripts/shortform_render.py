@@ -14,7 +14,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 IMAGE_EXTENSIONS = {".png", ".jpeg", ".jpg", ".webp", ".bmp"}
 
 class PlanError(Exception):
@@ -35,7 +35,7 @@ def src(root, rel):
 
 def ffprobe(path):
     result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                             "format=duration:stream=codec_type,width,height,r_frame_rate",
+                             "format=duration:stream=codec_type,codec_name,width,height,r_frame_rate",
                              "-of", "json", str(path)], text=True, capture_output=True)
     check(result.returncode == 0, f"ffprobe falhou para {path}: {result.stderr}")
     return json.loads(result.stdout)
