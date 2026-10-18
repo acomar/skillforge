@@ -4,7 +4,7 @@ description: Cria e edita Shorts, Reels e TikToks verticais com HQs/mangás, nar
 metadata:
   category: content
   status: experimental
-  version: "1.0.1"
+  version: "1.0.2"
 ---
 
 # ShortForm Manga Motion
@@ -63,6 +63,29 @@ python scripts/shortform_render.py render /projeto/short-plan.json --output /pro
 Para prévia: `--preview-scale 0.5` com outro nome de saída. O script não sobrescreve um master anterior. Para vídeo vertical com áudio e música, ele monta o áudio contínuo, cria imagens em movimento e texto do CTA e valida presença de streams e decodificação. Para música com picos, voz ruim, nomes nas legendas, qualidade editorial e loudness, a inspeção humana continua necessária.
 
 **Limitações reais:** não gera narração, SFX originais, tracking facial automático, recorte por detecção de objetos, parallax por camadas, legendas ASR nem transcrição. Tais etapas podem ser executadas por ferramentas realmente disponíveis no ambiente, nunca alegar sucesso automático.
+
+### 4b. Integração preferida com o renderer de mangá instalado
+
+Quando o projeto já foi renderizado pela versão atual instalada de `manga-hq-video-editor-pt`, **não substitua o tratamento de imagem, recortes, supersampling e mixagem pelo renderer simples**. Crie uma timeline 9:16 com revisão real dos recortes, renderize o master vertical usando a infraestrutura instalada e utilize `motion_cta_overlay.py` apenas para acrescentar um CTA oportuno. O adaptador não altera a faixa de áudio e verifica os intervalos protegidos. Ele reencoda o vídeo uma vez para desenhar o motion e exige revisão editorial após.
+
+```bash
+python scripts/motion_cta_overlay.py /projeto/master-sem-cta.mp4 /projeto/short-plan.json --output /projeto/master.mp4 --workdir /projeto/.motion-work
+```
+
+Se não houver oportunidade real de CTA, **preserve o master sem novo encode**. A intenção editorial sempre prevalece sobre a presença do efeito. O contrato do plano contém `cta[]`, `protected_intervals[]` e `segments[].protected`. Não declarar que a ferramenta encontrou automaticamente o ápice.
+
+
+## Preservar o editor avançado: motion como pós-processamento
+
+Para projetos que já utilizam o 'manga-hq-video-editor-pt' instalado, **não refaça o vídeo com o renderizador básico**. Aproveite o master avançado vertical já revisado e acrescente o CTA com o compositor independente:
+
+\`\`\`bash
+python scripts/motion_cta_overlay.py /projeto/master-vertical.mp4 /projeto/short-plan.json --output /projeto/master-motion.mp4 --workdir /projeto/.motion-work
+\`\`\`
+
+Esse módulo aceita o master com uma faixa de vídeo e uma de áudio, valida clímax protegido (`protected_intervals` e beats `protected:true`), aplica CTA sutil em overlay, **preserva o codec de áudio com `-c:a copy`**, e escreve um relatório técnico separado. O vídeo original não é sobrescrito. Para um plano que não comporta CTA (`cta: []`), use o master original sem reencodar.
+
+O compositor de CTA e o renderizador de curtos usam o mesmo mecanismo visual. O primeiro **não altera recortes, sincronização ou som** do editor avançado, exceto o re-encoding necessário na imagem. Sempre conferir a renderização no celular.
 
 ## 5. Revisão da montagem
 
