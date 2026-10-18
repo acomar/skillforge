@@ -1,45 +1,27 @@
-# Estratégia editorial, hipótese, mensuração e originalidade
+# Retenção, narrativa e avaliação
 
-## Priorização por história
+Otimizar para satisfazer o público, não para criar promessas artificiais. Sinais de Shorts são multidimensionais; retenção isolada não assegura recomendação. Não impor cortes periódicos nem duração fixa.
 
-Avaliando um vídeo em produção, e não fazendo afirmações sobre algoritmo:
-- Clareza no primeiro segundo: já é possível entender que algo está acontecendo?
-- Promessa honesta: a pergunta aberta recebe resposta no vídeo?
-- Coerência causal: a sequência dá contexto suficiente sem repetição?
-- Emoção comprovável: clímax é sustentado pelo material real, não por uma trilha artificial?
-- Ritmo funcional: o corte coincide com ação/informação nova? A pausa faz sentido?
-- Originalidade: comentários e interpretação própria, estrutura e direção autoral, sem reproduzir apenas um clipe ou sequência de painéis.
-- CTA consentâneo: oportunidade real ou silêncio editorial.
-- Legibilidade: tela inteira, proporções preservadas, personagens relevantes não cortados, sem overlays sobre a cena.
+## Hipóteses práticas
 
-Cada nota de qualidade é uma **avaliação editorial**, não previsão estatística de viralização. Registrar evidência e hipótese separadamente.
+- Início visual já dentro da ação: duas variações honestas. Exposição mínima necessária.
+- Cada beat muda informação, decisão, emoção ou ponto de vista. Pausa é legítima se intensifica entendimento.
+- Clímax fiel à obra, com tempo para reconhecimento. Não sobrepor inscrições, emojis ou sons de notificação.
+- Consequência resolve a promessa. Pergunta relevante somente se o espectador já pode respondê-la.
+- Se o personagem morre, chora ou se despede, silêncio e expressão podem gerar mais valor do que motion.
+- Originalidade editorial é parte do produto: narrativa e comentário próprio, análise autoral e montagem relevante. Efeitos superficiais não bastam.
 
-## Estrutura flexível para 15–90 segundos
+## Plano de medição
 
-- Abertura: primeira ação já comunica conflito ou consequência. Testar uma variante que começa pelo conflito e outra por uma consequência, sem mentir nem antecipar contexto impossível.
-- Contexto mínimo: dar informações para compreender quem quer o quê e por quê.
-- Progressão: cada plano adiciona mudança de estado ou evidência.
-- Ápice: dar espaço real; proteger momento, falas e silêncio.
-- Consequência e fechamento: cumprir a promessa e entregar resolução. Cliffhanger só quando o vídeo faz parte de uma série explicitamente sinalizada e fornece valor suficiente.
-- CTA: opcional, após a entrega de valor, em contexto coerente. Se prejudicar a emoção, remover.
+Depois de publicar, registrar: hook_variant, duration_s, theme, original_commentary, CTA type/text/time, impressions/shown in feed, chose to view/stayed to watch, engaged views, average view duration, average percentage viewed, meaningful comments, shares, follows. Comparar vídeos semelhantes e avaliar se um CTA coincide com queda de retenção. Não inventar dados. Em plataforma diferente, usar os nomes reais disponíveis.
 
-Não usar regra universal de cortes a cada X segundos. Esticar Shorts para um minuto sem conteúdo é proibido. Não adicionar efeito só porque passaram 2 segundos.
+## Fontes oficiais (outubro/2026)
 
-## Experimentação
+- https://support.google.com/youtube/answer/11914225 (Shorts: sinais de escolha de assistir e tempo assistido)
+- https://support.google.com/youtube/answer/12942217 (Shorts Analytics)
+- https://blog.youtube/creator-and-artist-stories/youtube-shorts-deep-dive/ (gancho desde o início)
+- https://ads.tiktok.com/business/en-US/creative-codes (estrutura gancho, corpo e fechamento; guia de anúncios, não regra do algoritmo orgânico)
+- https://about.fb.com/br/news/2026/03/recompensando-criadores-originais-no-facebook/ (originalidade em Reels)
+- https://support.google.com/youtube/answer/1311392 (monetização, conteúdo reutilizado e não autêntico, separados de copyright)
 
-Criar duas variantes de gancho quando materiais permitirem. Manter o restante da história constante se o objetivo do teste é isolar o gancho. Em outro teste, variar somente presença, texto ou posição do CTA. Separar formatos/temas e datas de publicação. Consultar histórico do canal, comparar amostras relevantes e evitar declarar vitória por uma observação isolada.
-
-Relatório: `hook_variant`, `story_type`, `runtime_s`, `cta_action`, `cta_at_s`, `cta_text`, `retention_drop_at_cta` (quando dado real existir), `shown_in_feed`, `stayed_to_watch`, `engaged_views`, `avg_view_duration`, `avg_percentage_viewed`, `comments_per_1000_views`, `shares_per_1000_views`, `follows_per_1000_views`. Nunca inventar métricas. Instagram/TikTok: registrar indicadores reais disponíveis, não renomeá-los como métrica oficial do YouTube.
-
-## Direitos e monetização
-
-Não confundir legenda, filtros, zoom e motion CTA com transformação editorial suficiente. Em obra de terceiros, adicionar narração/comentário original substancial, perspectiva editorial clara e verificar direitos e regras locais/plataformas. Os critérios de reused/inauthentic content do YouTube são separados de copyright; permissão ou ausência de claim não asseguram monetização.
-
-Referências oficiais, consultadas em 2026-10-18:
-- YouTube Search & Discovery, Shorts: https://support.google.com/youtube/answer/11914225
-- YouTube Content tab Analytics, Shorts: https://support.google.com/youtube/answer/12942217
-- YouTube Content performance metrics: https://support.google.com/youtube/answer/12220281
-- YouTube monetization and reused content: https://support.google.com/youtube/answer/1311392
-- YouTube Shorts monetization: https://support.google.com/youtube/answer/12504220
-- TikTok for Business creative practices (orientação de anúncios, não lei para organic): https://ads.tiktok.com/resources/help/article/creative-best-practices?lang=pt
-- TikTok Creative Codes (gancho/corpo/fechamento, contexto publicitário): https://ads.tiktok.com/business/pt-BR/blog/creative-best-practices-top-performing-ads
+Todas as métricas e estratégias são hipóteses de melhoria, não previsões de viralização ou elegibilidade comercial.
