@@ -1,6 +1,10 @@
 ---
 name: ui-ux-pro-max-pt
 description: Escolher padrões, estilos e sistemas visuais adequados ao domínio e à plataforma.
+metadata:
+  category: product
+  status: experimental
+  version: "1.0.0"
 ---
 
 # Inteligência de UI e UX
