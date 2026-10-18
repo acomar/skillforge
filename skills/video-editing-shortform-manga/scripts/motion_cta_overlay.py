@@ -13,8 +13,15 @@ import tempfile
 from pathlib import Path
 
 from shortform_render import (
-    ACTIONS, PlanError, cta_filters, digest, probe, require, run
+    PlanError,
+    overlay_filters,
+    sha256 as digest,
+    ffprobe as probe,
+    check as require,
+    shell as run,
 )
+
+ACTIONS = {"follow", "like", "comment"}
 
 
 def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
@@ -39,6 +46,15 @@ def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
         start,end = interval["start"],interval["end"]
         require(0 <= start < end <= duration, "intervalo protegido inválido")
         protected.append((start,end))
+    # A timeline may mark a climactic beat directly rather than duplicating
+    # it in protected_intervals. Honor both representations.
+    for beat in plan.get("segments", []):
+        if beat.get("protected"):
+            st, en = beat.get("start"), beat.get("end")
+            require(isinstance(st, (int, float)) and
+                    isinstance(en, (int, float)) and 0 <= st < en <= duration,
+                    "beat protegido inválido")
+            protected.append((st, en))
     for ev in ctas:
         start, leng = ev.get("start"), ev.get("duration")
         require(ev.get("action") in ACTIONS,"action inválida")
@@ -48,7 +64,7 @@ def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
                 "CTA fora de tempo")
         require(isinstance(ev.get("text"),str) and
                 1 <= len(ev["text"].strip()) <= 56 and
-                "\\n" not in ev["text"],"texto CTA inválido")
+                "\n" not in ev["text"] and "\r" not in ev["text"],"texto CTA inválido")
         require(bool(ev.get("why_now","").strip()),"why_now obrigatório")
         require(not any(start < end_protect and start+leng > st_protect
                         for st_protect,end_protect in protected),
@@ -57,7 +73,7 @@ def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
     temp = Path(tempfile.mkdtemp(prefix="cta_",dir=workdir))
     log = temp/"ffmpeg.log"
     # cta_filters is shared with the standalone renderer.
-    ff = cta_filters(plan,width,height,temp,spec.parent)
+    ff = overlay_filters(ctas, temp, width)
     require(ff, "sem CTA, preserve o master original sem reencode")
     output.parent.mkdir(parents=True,exist_ok=True)
     cmd = ["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y",
