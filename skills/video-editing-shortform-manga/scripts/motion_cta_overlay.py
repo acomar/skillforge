@@ -57,7 +57,7 @@ def overlay(master: Path, spec: Path, output: Path, workdir: Path) -> dict:
     temp = Path(tempfile.mkdtemp(prefix="cta_",dir=workdir))
     log = temp/"ffmpeg.log"
     # cta_filters is shared with the standalone renderer.
-    ff = cta_filters(plan,width,height,temp)
+    ff = cta_filters(plan,width,height,temp,spec.parent)
     require(ff, "sem CTA, preserve o master original sem reencode")
     output.parent.mkdir(parents=True,exist_ok=True)
     cmd = ["ffmpeg","-nostdin","-hide_banner","-loglevel","error","-y",
