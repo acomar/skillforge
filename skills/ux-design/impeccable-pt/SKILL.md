@@ -1,6 +1,10 @@
 ---
 name: impeccable-pt
 description: Auditar, criticar e elevar o acabamento de interfaces existentes sem sacrificar usabilidade.
+metadata:
+  category: product
+  status: experimental
+  version: "1.0.0"
 ---
 
 # Refinamento Visual Impecável
