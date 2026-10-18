@@ -1,0 +1,4 @@
+interface:
+  display_name: "ShortForm Manga Motion"
+  short_description: "Edição vertical de mangá com retenção narrativa e motion CTAs discretos."
+  default_prompt: "Analise a história e os materiais, escolha um arco honesto, edite vertical com foco e proteja o clímax. Use CTA motion apenas se couber após um payoff. Renderize e valide quando houver mídia e FFmpeg."
