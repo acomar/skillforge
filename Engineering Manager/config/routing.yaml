@@ -1,0 +1,95 @@
+{
+  "version": "1.0.0",
+  "default_skill": "high-output-manager",
+  "max_skills_per_request": 3,
+  "skills": [
+    {
+      "id": "purpose-strategy-architect",
+      "signals": "Quando falta clareza de missão, alinhamento estratégico, sentido da mudança, narrativa de transformação, OKRs confusos ou prioridades contraditórias.",
+      "related": [
+        "product-portfolio-strategist",
+        "organizational-transformation"
+      ]
+    },
+    {
+      "id": "high-output-manager",
+      "signals": "Quando o gerente está sobrecarregado, entra em todas as decisões, tem muitas reuniões, delega pouco, cobra atividades em vez de resultados ou não consegue multiplicar o impacto.",
+      "related": [
+        "leadership-coaching-master",
+        "flow-bottleneck-optimizer"
+      ]
+    },
+    {
+      "id": "leadership-coaching-master",
+      "signals": "Quando há dificuldade de feedback, falta de autonomia do tech lead, conflitos, dependência do gerente, 1:1 fracos, insegurança psicológica ou dificuldade de desenvolver talentos.",
+      "related": [
+        "knowledge-learning-architect",
+        "high-output-manager"
+      ]
+    },
+    {
+      "id": "team-topologies-architect",
+      "signals": "Quando há squads com ownership sobreposto, dependências cruzadas, repasses constantes, sustentação centralizada, alta carga cognitiva ou debate sobre reorganização.",
+      "related": [
+        "flow-bottleneck-optimizer",
+        "reliability-modernization"
+      ]
+    },
+    {
+      "id": "flow-bottleneck-optimizer",
+      "signals": "Quando o lead time é alto, há filas de change, CAB, teste e implantação, multitarefa excessiva, WIP alto ou percepção de “time lento” sem dados.",
+      "related": [
+        "engineering-excellence",
+        "high-output-manager"
+      ]
+    },
+    {
+      "id": "engineering-excellence",
+      "signals": "Quando há necessidade de melhorar DORA, testes, CI/CD, qualidade, confiabilidade das mudanças, Developer Experience ou padrões técnicos.",
+      "related": [
+        "flow-bottleneck-optimizer",
+        "reliability-modernization"
+      ]
+    },
+    {
+      "id": "product-portfolio-strategist",
+      "signals": "Quando o backlog é dominado por demandas regulatórias/top-down, há disputa entre incidentes e evolução, falta capacidade ou a estratégia não vira critérios de priorização.",
+      "related": [
+        "purpose-strategy-architect",
+        "high-output-manager"
+      ]
+    },
+    {
+      "id": "reliability-modernization",
+      "signals": "Quando modernizar COBOL/mainframe/JCL/batches para Java, reduzir MIPS, redefinir sustentação, melhorar observabilidade ou migração gradual de serviços críticos.",
+      "related": [
+        "team-topologies-architect",
+        "engineering-excellence"
+      ]
+    },
+    {
+      "id": "knowledge-learning-architect",
+      "signals": "Quando uma aplicação depende de uma ou duas pessoas, o onboarding é lento, há documentação inexistente, perda de contexto, rotatividade ou pouca capacidade de diagnóstico.",
+      "related": [
+        "leadership-coaching-master",
+        "reliability-modernization"
+      ]
+    },
+    {
+      "id": "organizational-transformation",
+      "signals": "Quando executar mudança de cultura, desenvolver autonomia em múltiplas squads, lançar operating model, resolver resistência ou transformar a organização em 90 dias.",
+      "related": [
+        "purpose-strategy-architect",
+        "team-topologies-architect"
+      ]
+    }
+  ],
+  "routing_rules": [
+    "Identifique resultado esperado e maior restrição antes de invocar skills.",
+    "Escolha uma skill primária e no máximo duas complementares.",
+    "Orquestre resultados em uma única recomendação; elimine ações duplicadas.",
+    "Se o problema for de risco operacional, Reliability & Modernization precede velocidade de entrega.",
+    "Se houver falta de finalidade, Purpose & Strategy Architect antecede priorização.",
+    "Se o problema for entre squads, Team Topologies antecede coaching individual."
+  ]
+}

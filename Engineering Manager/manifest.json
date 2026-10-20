@@ -1,0 +1,21 @@
+{
+  "name": "engineering-manager-ai",
+  "version": "1.0.0",
+  "language": "pt-BR",
+  "agent": "agents/engineering-manager/AGENT.md",
+  "skill_format": "SKILL.md",
+  "skills": [
+    "purpose-strategy-architect",
+    "high-output-manager",
+    "leadership-coaching-master",
+    "team-topologies-architect",
+    "flow-bottleneck-optimizer",
+    "engineering-excellence",
+    "product-portfolio-strategist",
+    "reliability-modernization",
+    "knowledge-learning-architect",
+    "organizational-transformation"
+  ],
+  "source_material": "user-provided EPUBs; original texts not redistributed",
+  "compatible_with": "file-based agent configurations; adapter required per target platform"
+}
