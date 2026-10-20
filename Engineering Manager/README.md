@@ -79,3 +79,15 @@ Este diretório `Engineering Manager/` contém o projeto integrado do agente, do
 - [`reliability-modernization`](../skills/reliability-modernization/SKILL.md)
 - [`knowledge-learning-architect`](../skills/knowledge-learning-architect/SKILL.md)
 - [`organizational-transformation`](../skills/organizational-transformation/SKILL.md)
+
+## Comunicação natural em PT-BR, a partir da v1.1.0
+
+Toda resposta textual em português brasileiro passa por uma revisão editorial de `humanizer-ptbr-manager` depois da análise das super skills. Essa revisão é transversal, não ocupa o limite de três especialidades por solicitação e não altera o raciocínio técnico.
+
+- Skill reutilizável: [humanizer-ptbr-manager](../skills/humanizer-ptbr-manager/SKILL.md).
+- Integração operacional: [comunicacao-humanizada.md](references/comunicacao-humanizada.md).
+- Cenários de avaliação: [humanizer-scenarios.md](evals/humanizer-scenarios.md).
+- Configuração: `config/routing.yaml`, campo `post_processing`.
+
+**Proteções:** manter nomes, métricas, condições, riscos, fontes, aprovações, hipóteses e compromissos intactos. Não inventar experiência de gestão e não prometer que detectores de IA não reconhecerão o texto. A documentação descreve o comportamento esperado; ainda precisa de avaliações reais em execução.
+

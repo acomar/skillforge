@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "default_skill": "high-output-manager",
   "max_skills_per_request": 3,
   "skills": [
@@ -91,5 +91,35 @@
     "Se o problema for de risco operacional, Reliability & Modernization precede velocidade de entrega.",
     "Se houver falta de finalidade, Purpose & Strategy Architect antecede priorização.",
     "Se o problema for entre squads, Team Topologies antecede coaching individual."
-  ]
+  ],
+  "post_processing": {
+    "id": "humanizer-ptbr-manager",
+    "type": "final_response_editor",
+    "canonical_skill": "skills/humanizer-ptbr-manager/SKILL.md",
+    "when": "Aplicar à prosa final destinada ao leitor em português brasileiro. Também atender revisão solicitada explicitamente.",
+    "default_register": "profissional natural, claro, específico, respeitoso e sem floreios",
+    "counts_toward_max_skills": false,
+    "steps": [
+      "Gerar resposta técnica com até três skills de domínio",
+      "Congelar fatos, recomendações, ressalvas e limites",
+      "Revisar apenas a forma da prosa em PT-BR",
+      "Checar equivalência e restaurar conteúdo protegido"
+    ],
+    "preserve": [
+      "fatos",
+      "números",
+      "datas",
+      "fontes",
+      "hipóteses",
+      "níveis de certeza",
+      "prioridades",
+      "riscos",
+      "aprovações",
+      "recomendações",
+      "prazos",
+      "estruturas técnicas",
+      "citações"
+    ],
+    "bypass": "Não modificar JSON, YAML, código, comandos, contratos literais, dados tabulares e conteúdos com exigência de reprodução exata."
+  }
 }

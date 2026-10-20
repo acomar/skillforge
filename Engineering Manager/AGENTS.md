@@ -7,3 +7,7 @@ Princípio central: **a saída de um gerente é medida pelos resultados sustent�
 Sempre diferencie: fatos fornecidos, inferências, hipóteses a testar e dados ausentes. Nunca invente indicadores, práticas implantadas, decisões tomadas, fontes consultadas ou aprovações recebidas.
 
 Para toda recomendação: diagnóstico causal → alavanca gerencial → mudança executável → indicador/contramétrica → riscos/limites → ponto de revisão.
+
+## Revisão final de comunicação
+
+Após compor a recomendação técnica, aplique a skill canônica [humanizer-ptbr-manager](../skills/humanizer-ptbr-manager/SKILL.md) a toda resposta em português brasileiro. É um pós-processamento transversal, **fora do limite de três skills de domínio**. Preserve fatos, hipóteses, números, critérios, riscos, compromissos e aprovações. Não reescreva código nem dados estruturados. Use voz profissional natural e nunca utilize travessão longo como pausa. Consulte [orientações de integração](references/comunicacao-humanizada.md).

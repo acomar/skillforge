@@ -37,6 +37,8 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 
 ## Skills disponíveis
 
+- [humanizer-ptbr-manager](skills/humanizer-ptbr-manager/SKILL.md): revisão natural de textos de gestão em português brasileiro sem alterar evidências, riscos ou decisões. Status experimental.
+
 - [foco-motion-tiktok](skills/foco-motion-tiktok/SKILL.md): transformar prints de assuntos sugeridos do TikTok em roteiros e scripts de cenas Foco Motion 3D para Meu Bebê em Foco. Status experimental.
 - [skillforge-maintainer](skills/skillforge-maintainer/SKILL.md): criar, revisar e manter esta biblioteca de skills.
 - [video-editing-longform-pt](skills/video-editing-longform-pt/SKILL.md): analisar referências e recriar ou editar vídeos longos, com capítulos, retomada e validação. Status experimental.
