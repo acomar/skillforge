@@ -1,0 +1,31 @@
+{
+  "video_id": "",
+  "title": "",
+  "version": "0.2.0",
+  "target_format": "16:9",
+  "target_duration_minutes": "10-12",
+  "phase": "planejado",
+  "stage_status": {
+    "research": "planejado",
+    "packaging": "planejado",
+    "script": "planejado",
+    "evidence": "planejado",
+    "art": "planejado",
+    "audio": "planejado",
+    "animatic": "planejado",
+    "video": "planejado",
+    "qc": "planejado",
+    "publishing": "bloqueado",
+    "analytics": "planejado"
+  },
+  "assets": [],
+  "rights_verified": false,
+  "publication_approved": false,
+  "actual_costs": [],
+  "quality_review": {
+    "silent_visual": false,
+    "audio_only": false,
+    "integrated": false
+  },
+  "last_confirmed_action": null
+}

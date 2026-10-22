@@ -1,0 +1,22 @@
+# Brief de vídeo | Meu Bebê em Foco
+
+- Identificador:
+- Título provisório:
+- Tema/pergunta central:
+- Público e faixa etária:
+- Problema real dos pais:
+- Fonte do tema e evidências:
+- Originalidade/diferenciação:
+- Promessa da thumbnail:
+- Visual obrigatório dos primeiros 5 segundos:
+- Duração alvo: 10–12 minutos
+- Resolução: horizontal 16:9
+- Descoberta principal:
+- Ações práticas seguras:
+- Objetivo de emoção/clareza sem áudio:
+- Momento planejado de pausa/overlay/retomada:
+- Voz Gemini aprovada:
+- Referências visuais e personagens:
+- Riscos científicos/copyright:
+- Custos reais:
+- Status de aprovação para publicar:
