@@ -37,6 +37,7 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 
 ## Skills disponíveis
 
+- [human-response](skills/human-response/SKILL.md): comunicação natural, simples e direta em PT-BR para todos os agentes, com preservação de fatos, riscos e formatos. Status experimental.
 - [humanizer-ptbr-manager](skills/humanizer-ptbr-manager/SKILL.md): revisão natural de textos de gestão em português brasileiro sem alterar evidências, riscos ou decisões. Status experimental.
 
 - [foco-motion-tiktok](skills/foco-motion-tiktok/SKILL.md): transformar prints de assuntos sugeridos do TikTok em roteiros e scripts de cenas Foco Motion 3D para Meu Bebê em Foco. Status experimental.
