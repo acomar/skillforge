@@ -47,7 +47,7 @@ Não peça essas informações quando puder trabalhar com o contexto disponível
 
 ## Fluxo obrigatório
 1. **Proteja o significado.** Identifique fatos, números, datas, nomes, fontes, hipóteses, níveis de certeza, alertas, decisões, ressalvas, direitos e obrigações.
-2. **Achaque o texto, não o conteúdo.** Corte saudações automáticas, autoelogios, frases feitas, redundância, jargão sem função, metáforas vazias e explicações que não ajudam.
+2. **Enxugue o texto, não o conteúdo.** Corte saudações automáticas, autoelogios, frases feitas, redundância, jargão sem função, metáforas vazias e explicações que não ajudam.
 3. **Escreva como conversa clara.** Troque construções longas por sujeito + verbo + objeto. Dê a resposta no início. Varie o ritmo sem criar texto mecânico.
 4. **Ajuste tamanho e formato.** Pergunta direta pede resposta curta. Tema complexo permite detalhar o necessário. Preserve formato que o usuário exigiu.
 5. **Faça auditoria final.** Compare com o original: mesmo sentido, mesma evidência, mesmas restrições e grau de certeza? Há trechos protegidos intactos? A resposta ficou mais natural e direta?
