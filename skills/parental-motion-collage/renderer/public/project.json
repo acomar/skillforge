@@ -1,0 +1,105 @@
+{
+  "title": "Short demonstrativo: bolsa para passeio com bebê",
+  "editorialStatus": "approved_for_render",
+  "note": "Exemplo gráfico com conteúdo ilustrativo, sem locução e sem fotos reais. Exige revisão humana antes de publicação.",
+  "audio": {},
+  "shots": [
+    {
+      "id": "s01",
+      "durationFrames": 90,
+      "background": "#57B8FF",
+      "caption": "Passeio com bebê? Organize a bolsa.",
+      "narration": "Vai sair com o bebê? Organizar a bolsa antes ajuda a evitar aquela correria.",
+      "camera": {"zoomFrom": 1, "zoomTo": 1.03, "panX": 10, "panY": -5},
+      "layers": [
+        {"id":"blob","kind":"shape","x":540,"y":830,"w":780,"h":750,"background":"#FFF9F0","startFrame":0,"depth":-0.03},
+        {"id":"title","kind":"text","text":"BOLSA DO\nBEBÊ","x":540,"y":590,"w":750,"h":320,"fontSize":112,"color":"#243047","startFrame":0,"depth":0.08},
+        {"id":"icon","kind":"tag","text":"CHECKLIST ✨","x":540,"y":1070,"w":630,"h":125,"fontSize":65,"background":"#FFD761","startFrame":10,"enter":"pop","depth":0.15}
+      ]
+    },
+    {
+      "id": "s02",
+      "durationFrames": 120,
+      "background": "#FF6F7D",
+      "caption": "Comece pelos itens da troca.",
+      "narration": "Primeiro, separe os itens que você usa na hora da troca.",
+      "camera": {"zoomFrom": 1, "zoomTo": 1.045, "panX": -12, "panY": 6},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":850,"w":770,"h":880,"background":"#FFF9F0","startFrame":0},
+        {"id":"step","kind":"tag","text":"01  TROCA","x":540,"y":490,"w":670,"h":130,"fontSize":75,"background":"#FFD761","startFrame":0},
+        {"id":"item1","kind":"tag","text":"Fraldas","x":540,"y":755,"w":520,"h":115,"fontSize":76,"background":"#5BD7B3","startFrame":10,"enter":"slide-left"},
+        {"id":"item2","kind":"tag","text":"Lenços ou algodão","x":540,"y":1000,"w":690,"h":135,"fontSize":57,"background":"#AE93FF","startFrame":24,"enter":"slide-right"}
+      ]
+    },
+    {
+      "id": "s03",
+      "durationFrames": 120,
+      "background": "#FFD761",
+      "caption": "Deixe uma troca de roupa à mão.",
+      "narration": "Uma troca de roupa extra pode ser muito útil durante o passeio.",
+      "camera": {"zoomFrom": 1.01, "zoomTo": 1.05, "panX": 8, "panY": -9},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":870,"w":790,"h":870,"background":"#FFF9F0","startFrame":0},
+        {"id":"step","kind":"text","text":"02","x":540,"y":530,"w":400,"h":160,"fontSize":140,"startFrame":0},
+        {"id":"item1","kind":"tag","text":"ROUPINHA EXTRA","x":540,"y":820,"w":740,"h":135,"fontSize":65,"background":"#AE93FF","startFrame":9,"enter":"rise"},
+        {"id":"item2","kind":"tag","text":"Em uma bolsinha","x":540,"y":1080,"w":690,"h":120,"fontSize":60,"background":"#5BD7B3","startFrame":23,"enter":"pop"}
+      ]
+    },
+    {
+      "id": "s04",
+      "durationFrames": 120,
+      "background": "#AE93FF",
+      "caption": "Separe o que você usa para limpar.",
+      "narration": "Inclua também um paninho limpo e os itens da rotina que fazem sentido para vocês.",
+      "camera": {"zoomFrom": 1, "zoomTo": 1.035, "panX": -6, "panY": -7},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":830,"w":800,"h":850,"background":"#FFF9F0","startFrame":0},
+        {"id":"title","kind":"text","text":"03  PANINHOS","x":540,"y":530,"w":750,"h":200,"fontSize":83,"startFrame":0},
+        {"id":"tag1","kind":"tag","text":"Fácil de achar","x":540,"y":820,"w":610,"h":125,"fontSize":64,"background":"#FFD761","startFrame":12,"enter":"slide-left"},
+        {"id":"tag2","kind":"tag","text":"Fácil de repor","x":540,"y":1050,"w":610,"h":125,"fontSize":64,"background":"#5BD7B3","startFrame":26,"enter":"slide-right"}
+      ]
+    },
+    {
+      "id": "s05",
+      "durationFrames": 120,
+      "background": "#5BD7B3",
+      "caption": "Pense na duração do passeio.",
+      "narration": "O que levar depende do tempo fora de casa, da idade e da rotina do bebê.",
+      "camera": {"zoomFrom": 1, "zoomTo": 1.05, "panX": 10, "panY": -4},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":830,"w":790,"h":850,"background":"#FFF9F0","startFrame":0},
+        {"id":"title","kind":"text","text":"QUANTO TEMPO?","x":540,"y":560,"w":740,"h":160,"fontSize":80,"startFrame":0},
+        {"id":"short","kind":"tag","text":"Passeio curto","x":540,"y":840,"w":630,"h":135,"fontSize":69,"background":"#57B8FF","startFrame":10,"enter":"slide-left"},
+        {"id":"long","kind":"tag","text":"Passeio longo","x":540,"y":1080,"w":630,"h":135,"fontSize":69,"background":"#FFD761","startFrame":25,"enter":"slide-right"}
+      ]
+    },
+    {
+      "id": "s06",
+      "durationFrames": 120,
+      "background": "#57B8FF",
+      "caption": "Confira antes de fechar a bolsa.",
+      "narration": "Antes de sair, faça uma revisão rápida para não esquecer o essencial.",
+      "camera": {"zoomFrom": 1.01, "zoomTo": 1.035, "panX": 0, "panY": -6},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":870,"w":820,"h":910,"background":"#FFF9F0","startFrame":0},
+        {"id":"title","kind":"text","text":"REVISÃO FINAL","x":540,"y":510,"w":740,"h":160,"fontSize":75,"startFrame":0},
+        {"id":"tick1","kind":"tag","text":"✓ Troca","x":540,"y":785,"w":530,"h":105,"fontSize":65,"background":"#5BD7B3","startFrame":10,"enter":"rise"},
+        {"id":"tick2","kind":"tag","text":"✓ Roupa","x":540,"y":990,"w":530,"h":105,"fontSize":65,"background":"#FFD761","startFrame":24,"enter":"rise"},
+        {"id":"tick3","kind":"tag","text":"✓ Rotina","x":540,"y":1195,"w":530,"h":105,"fontSize":65,"background":"#AE93FF","startFrame":38,"enter":"rise"}
+      ]
+    },
+    {
+      "id": "s07",
+      "durationFrames": 120,
+      "background": "#FF6F7D",
+      "caption": "O essencial é o que funciona para vocês.",
+      "narration": "Pronto. O melhor checklist é aquele que combina com a rotina de vocês.",
+      "camera": {"zoomFrom": 1, "zoomTo": 1.02, "panX": 0, "panY": 0},
+      "layers": [
+        {"id":"paper","kind":"shape","x":540,"y":840,"w":800,"h":790,"background":"#FFF9F0","startFrame":0},
+        {"id":"title","kind":"text","text":"PRONTO!","x":540,"y":600,"w":750,"h":205,"fontSize":120,"startFrame":0},
+        {"id":"tag","kind":"tag","text":"Bom passeio 💛","x":540,"y":1020,"w":720,"h":145,"fontSize":74,"background":"#FFD761","startFrame":12,"enter":"pop"}
+      ]
+    }
+  ]
+}
