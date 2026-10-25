@@ -40,6 +40,7 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 - [human-response](skills/human-response/SKILL.md): comunicação natural, simples e direta em PT-BR para todos os agentes, com preservação de fatos, riscos e formatos. Status experimental.
 - [humanizer-ptbr-manager](skills/humanizer-ptbr-manager/SKILL.md): revisão natural de textos de gestão em português brasileiro sem alterar evidências, riscos ou decisões. Status experimental.
 
+- [parental-motion-collage](skills/parental-motion-collage/SKILL.md): editar e renderizar Shorts 9:16 de parentalidade, com colagem 2D editorial colorida, recortes independentes, câmera, legendas e starter Remotion. Status experimental.
 - [foco-motion-tiktok](skills/foco-motion-tiktok/SKILL.md): transformar prints de assuntos sugeridos do TikTok em roteiros e scripts de cenas Foco Motion 3D para Meu Bebê em Foco. Status experimental.
 - [skillforge-maintainer](skills/skillforge-maintainer/SKILL.md): criar, revisar e manter esta biblioteca de skills.
 - [video-editing-longform-pt](skills/video-editing-longform-pt/SKILL.md): analisar referências e recriar ou editar vídeos longos, com capítulos, retomada e validação. Status experimental.
