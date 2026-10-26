@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "brand": "Meu Bebê em Foco",
+  "palette_status": "valores aproximados da identidade oficial v1, consultada em 2026-10-25",
+  "palette": {
+    "blue": "#4F8EF7",
+    "pink": "#F7A8C4",
+    "yellow": "#FFD68A",
+    "green": "#A7D8A7",
+    "lavender_gray": "#E8E8F1"
+  },
+  "production_colors_status": "apoios novos para este formato; não são cores oficiais adicionais",
+  "production_colors": {
+    "paper": "#FFF8ED",
+    "ink": "#4A342C",
+    "night_blue": "#233A64",
+    "white": "#FFFFFF"
+  },
+  "typography": {
+    "status": "escolhas do formato pop-up, não fontes oficiais da marca",
+    "captions": {"family": "Fredoka", "weight": 700, "size_px": 84, "key_size_px": 98},
+    "cover": {"family": "Lilita One"},
+    "caption_outline_color": "#4A342C",
+    "caption_default_color": "#FFF8ED",
+    "caption_key_color": "#FFD68A"
+  },
+  "video": {"width": 1080, "height": 1920, "fps": 30, "duration": "follow_actual_narration"},
+  "layout_px": {
+    "safe_left": 120,
+    "safe_right": 180,
+    "safe_top": 270,
+    "safe_bottom": 480,
+    "main_art": {"x0": 120, "x1": 900, "y0": 300, "y1": 1230},
+    "captions": {"center_x": 510, "baseline_y": 1400, "max_width": 760, "max_words": 2},
+    "informative_notice": {"center_x": 510, "baseline_y": 1300, "size_px": 34, "max_width": 760}
+  },
+  "timing_defaults_seconds": {"voice_lead": 1.0, "page_turn_preroll": 0.55, "page_turn_postroll": 1.15},
+  "audio_defaults": {"music": false, "synthetic_sfx": false, "click_gain": 0.22, "whoosh_gain": 0.55, "min_click_interval_seconds": 1.4, "integrated_lufs": -14, "max_true_peak_dbtp": -1.2},
+  "reference_board": {"file": "family-board.png", "sha256": "3b017c4ababfe4dcbfc66e6e987b2e82b124b9ffea2140e86958f93b4cc36b42"}
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Meu Bebê em Foco — Livro Pop-up"
+  short_description: "Produz roteiros em vídeo vertical de livro pop-up"
+  default_prompt: "Use $meu-bebe-popup para produzir este roteiro em vídeo de livro pop-up com a identidade do Meu Bebê em Foco."

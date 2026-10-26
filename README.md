@@ -37,6 +37,7 @@ Depois, edite `skills/eventstorming-facilitator/SKILL.md` e inclua `references/`
 
 ## Skills disponíveis
 
+- [meu-bebe-popup](skills/meu-bebe-popup/SKILL.md): transformar roteiros em vídeos verticais de livro pop-up de papel com a identidade do Meu Bebê em Foco, narração sincronizada, legendas curtas e SFX discretos. Inclui prancha, paleta e helper de legendas. Status experimental; render completo ainda não homologado.
 - [human-response](skills/human-response/SKILL.md): comunicação natural, simples e direta em PT-BR para todos os agentes, com preservação de fatos, riscos e formatos. Status experimental.
 - [humanizer-ptbr-manager](skills/humanizer-ptbr-manager/SKILL.md): revisão natural de textos de gestão em português brasileiro sem alterar evidências, riscos ou decisões. Status experimental.
 
